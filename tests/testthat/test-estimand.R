@@ -146,3 +146,19 @@ test_that("direction argument flips which tail counts as favourable", {
   down <- cgr_conjugate(d, 0.5, n_draws = 4000, direction = -1)
   expect_equal(up$p_fav + down$p_fav, 1, tolerance = 0.02)
 })
+
+test_that("sim_aeb benign = 0 is unchanged and benign guessing follows outcome", {
+  set.seed(31); a <- sim_aeb(230, 0.7, TRUE, TRUE)
+  set.seed(31); b <- sim_aeb(230, 0.7, TRUE, TRUE, benign = 0)
+  expect_identical(a, b)
+  set.seed(32); d <- sim_aeb(20000, 0.7, benign = 1)
+  expect_equal(mean(d$condition == d$guess), 0.5, tolerance = 0.02)
+  expect_gt(mean(d$value[d$guess == "AC"]) - mean(d$value[d$guess == "PL"]), 4)
+})
+
+test_that("benign unblinding makes CGR adjustment remove a real effect", {
+  op <- cgr_operating(n_trials = 150, n = 230, n_draws = 1000, seed = 33,
+                      benign = 0.5)
+  expect_lt(op$adj_bias[op$DTE == 1 & op$AEB == 0], -1)
+  expect_lt(abs(op$adj_bias[op$DTE == 0 & op$AEB == 1]), 0.4)
+})

@@ -23,7 +23,10 @@ show what the contrast would be at a different correct-guess rate, usually 0.50
 
 The adjusted estimate is a sensitivity analysis for unblinding, not a causal
 decomposition: shrinkage under adjustment does not measure how much of an
-effect was expectancy.
+effect was expectancy. If some participants work out their arm from how they are
+doing rather than from side effects, adjustment also removes part of a real
+effect; the [benign-unblinding stress test](docs/benign-unblinding.md) puts
+numbers on this.
 
 ## Install
 
@@ -139,6 +142,7 @@ with a real effect plus expectancy, it flags the effect in 69% of trials.
 | [Detailed overview](docs/detailed_overview.md) | Full reproduction, worked example, derivations, simulations and sensitivity analyses |
 | [Plain-language guide](docs/plain-language.md) | The method without equations |
 | [Assumptions](docs/assumptions.md) | Every assumption, and what follows if it fails |
+| [Benign unblinding](docs/benign-unblinding.md) | How much real effect adjustment removes when participants infer their arm from how they are doing |
 | [Stress test of the extension](docs/unknown-stress-test.md) | How the "I don't know" extension behaves when its assumptions fail |
 | [Open questions](docs/open-questions.md) | Discrepancies with the original paper, ranked |
 | [Sources](docs/sources.md) | Papers and code, and which facts come from each |

@@ -9,7 +9,7 @@ here" means testable with these data. Section numbers refer to the
 
 | # | Assumption | Consequence if false | Testable here |
 |---|---|---|---|
-| A1 | Unblinding is malicious: perceived treatment causes expectancy, which causes the outcome. | If unblinding is benign (improvement causes the correct guess), adjustment removes a real effect and produces a false negative. The original paper warns about this explicitly. | No (U6) |
+| A1 | Unblinding is malicious: perceived treatment causes expectancy, which causes the outcome. | If unblinding is benign (improvement causes the correct guess), adjustment removes a real effect: about a third of it when a quarter of guesses are benign, close to two-thirds from half onward ([stress test](benign-unblinding.md)). The original paper warns about this explicitly. | No (U6) |
 | A2 | The four observed strata are exchangeable with the corresponding strata in a hypothetical well-blinded trial. | Reweighting transports the wrong population. Someone who guesses right under poor blinding may differ from someone who guesses right by luck. | No |
 | A3 | The within-class arm shares r and s are the right quantities to hold fixed. | Overall target arm mass changes with the class masses, and each arm mean is renormalised. Whether the preserved shares are scientifically appropriate is an assumption. | Partly (Section 11) |
 | A4 | r and s are known constants, not estimates. | Uncertainty is understated. Treating them as Beta-distributed widens the interval (Section 11). | Yes |

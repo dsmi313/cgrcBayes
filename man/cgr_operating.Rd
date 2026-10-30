@@ -14,7 +14,8 @@ cgr_operating(
   seed = 1,
   mu_dte = 3,
   mu_aeb = 7.7,
-  direction = 1
+  direction = 1,
+  benign = 0
 )
 
 cgr_unknown_operating(
@@ -51,6 +52,12 @@ participant; \code{"arm"} applies them only within the affected subgroup.}
 
 \item{direction}{\code{1} if higher outcome values are favourable, \code{-1} if lower
 values are.}
+
+\item{benign}{Share of participants whose guess comes from how they are
+doing rather than from side effects (benign unblinding). They guess active
+when their outcome before expectancy is above the trial median, and their
+guess carries no expectancy. The CGRC assumes \code{benign = 0}; see
+\code{\link[=cgr_operating]{cgr_operating()}} for its consequences.}
 
 \item{u}{Probability of an UNKNOWN response, averaged over the two arms.}
 }

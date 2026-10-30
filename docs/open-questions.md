@@ -67,7 +67,10 @@ negative) are far smaller than natural day-to-day variability (about 10 and 6)
 (S1). The 2024 review adds that microdose effects fall below the 0.5-SMD
 minimal important difference (S3). That is an argument from evidence, not a
 demonstration. No analysis of these data can settle it, so this stays open on
-principle.
+principle. The [benign-unblinding stress test](benign-unblinding.md) shows what
+is at stake: if a quarter of participants infer their arm from how they are
+doing, adjustment removes about a third of a real 3-point effect, and from half
+onward close to two-thirds, while the observed guess rate gives no warning.
 
 ### U10. Assumptions behind the UNKNOWN-preserving extension
 

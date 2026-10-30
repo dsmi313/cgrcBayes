@@ -53,6 +53,11 @@
 #' @param mu_nh,sd_nh Mean and SD of the baseline term.
 #' @param mu_dte,sd_dte Mean and SD of the direct treatment effect.
 #' @param mu_aeb,sd_aeb Mean and SD of the expectancy effect.
+#' @param benign Share of participants whose guess comes from how they are
+#'   doing rather than from side effects (benign unblinding). They guess active
+#'   when their outcome before expectancy is above the trial median, and their
+#'   guess carries no expectancy. The CGRC assumes `benign = 0`; see
+#'   [cgr_operating()] for its consequences.
 #' @return A data frame with columns `condition`, `guess` and `value`, ready
 #'   for [cgrc()] or [cgrc_unknown()].
 #' @references Szigeti B, Nutt D, Carhart-Harris R, Erritzoe D (2023). The
@@ -66,7 +71,7 @@
 sim_aeb <- function(n = 230, p_cg = 0.7, dte_on = FALSE, aeb_on = FALSE,
                     noise = c("all", "arm"),
                     mu_nh = 10, sd_nh = 4, mu_dte = 3, sd_dte = 6.2,
-                    mu_aeb = 7.7, sd_aeb = 6.2) {
+                    mu_aeb = 7.7, sd_aeb = 6.2, benign = 0) {
   noise <- match.arg(noise)
   trt     <- stats::runif(n) < 0.5
   correct <- stats::runif(n) < p_cg
@@ -74,8 +79,18 @@ sim_aeb <- function(n = 230, p_cg = 0.7, dte_on = FALSE, aeb_on = FALSE,
   y <- stats::rnorm(n, mu_nh, sd_nh)
   if (dte_on) y <- y + if (noise == "arm") trt * stats::rnorm(n, mu_dte, sd_dte)
                        else trt * mu_dte + stats::rnorm(n, 0, sd_dte)
-  if (aeb_on) y <- y + if (noise == "arm") pt * stats::rnorm(n, mu_aeb, sd_aeb)
-                       else pt * mu_aeb + stats::rnorm(n, 0, sd_aeb)
+  # Benign unblinding: a share `benign` of participants infer their arm from how
+  # they are doing, guessing active when their outcome before expectancy is
+  # above the trial median. Their guess follows the outcome instead of causing
+  # it, so it carries no expectancy.
+  te <- pt
+  if (benign > 0) {
+    from_outcome <- stats::runif(n) < benign
+    pt[from_outcome] <- (y > stats::median(y))[from_outcome]
+    te[from_outcome] <- FALSE
+  }
+  if (aeb_on) y <- y + if (noise == "arm") te * stats::rnorm(n, mu_aeb, sd_aeb)
+                       else te * mu_aeb + stats::rnorm(n, 0, sd_aeb)
   data.frame(condition = ifelse(trt, "AC", "PL"),
              guess = ifelse(pt, "AC", "PL"), value = y,
              stringsAsFactors = FALSE)
@@ -119,7 +134,8 @@ sim_aeb <- function(n = 230, p_cg = 0.7, dte_on = FALSE, aeb_on = FALSE,
 #' cgr_operating(n_trials = 20, n = 120, p_cg = 0.75, n_draws = 500)
 cgr_operating <- function(n_trials = 500, n = 230, p_cg = 0.7,
                           noise = "all", n_draws = 4000, seed = 1,
-                          mu_dte = 3, mu_aeb = 7.7, direction = 1) {
+                          mu_dte = 3, mu_aeb = 7.7, direction = 1,
+                          benign = 0) {
   set.seed(seed)
   cfg <- list(c(0, 0), c(1, 0), c(0, 1), c(1, 1))
   rows <- lapply(cfg, function(z) {
@@ -128,7 +144,8 @@ cgr_operating <- function(n_trials = 500, n = 230, p_cg = 0.7,
     adj <- unadj <- numeric(n_trials)
     cov <- fav <- fav975 <- ufav <- sig <- valid <- logical(n_trials)
     for (i in seq_len(n_trials)) {
-      d  <- sim_aeb(n, p_cg, dte, aeb, noise, mu_dte = mu_dte, mu_aeb = mu_aeb)
+      d  <- sim_aeb(n, p_cg, dte, aeb, noise, mu_dte = mu_dte, mu_aeb = mu_aeb,
+                    benign = benign)
       # At a high correct-guess rate with small n, a wrong-guess stratum can come
       # up empty, and the estimand is then undefined. Skip that trial rather than
       # crash - the RATE of such trials is itself a warning that CGR adjustment

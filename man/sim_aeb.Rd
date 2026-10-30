@@ -16,7 +16,8 @@ sim_aeb(
   mu_dte = 3,
   sd_dte = 6.2,
   mu_aeb = 7.7,
-  sd_aeb = 6.2
+  sd_aeb = 6.2,
+  benign = 0
 )
 
 sim_aeb_unknown(
@@ -56,6 +57,12 @@ participant; \code{"arm"} applies them only within the affected subgroup.}
 \item{mu_dte, sd_dte}{Mean and SD of the direct treatment effect.}
 
 \item{mu_aeb, sd_aeb}{Mean and SD of the expectancy effect.}
+
+\item{benign}{Share of participants whose guess comes from how they are
+doing rather than from side effects (benign unblinding). They guess active
+when their outcome before expectancy is above the trial median, and their
+guess carries no expectancy. The CGRC assumes \code{benign = 0}; see
+\code{\link[=cgr_operating]{cgr_operating()}} for its consequences.}
 
 \item{u}{Probability of an UNKNOWN response, averaged over the two arms.}
 

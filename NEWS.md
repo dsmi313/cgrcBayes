@@ -24,6 +24,9 @@ First release.
   `sim_aeb_unknown()` gains `u_diff`, `aeb_unknown`, `u_wrong` and `u_outcome`
   to simulate these cases and UNKNOWN responses that depend on the unstated
   belief or on the outcome.
+* `sim_aeb()` and `cgr_operating()` gain `benign`, the share of participants
+  who infer their arm from how they are doing, to quantify how much real effect
+  CGR adjustment removes under benign unblinding (`docs/benign-unblinding.md`).
 * `cgrc_unknown_compare()`: the six-stratum and complete-case estimates side by
   side, with the UNKNOWN rate in each arm. When UNKNOWN answers are present, the
   app now defaults to the complete-case analysis, always shows both, and warns
