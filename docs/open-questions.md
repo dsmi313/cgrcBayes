@@ -96,9 +96,11 @@ Relaxing A1 and A2 is covered in the [stress test](unknown-stress-test.md).
 Either violation biases the six-stratum estimator in proportion to its size
 (up to about 0.6–0.8 points in the grid tested, with false positives rising to
 about 0.2), while dropping UNKNOWN responders (complete case) stays close to
-unbiased at lower power. What is still not characterised is an UNKNOWN response
-that depends on the unstated belief or on the outcome, which would also break
-complete case. Six strata are thinner than four, so
+unbiased at lower power. A second test makes the UNKNOWN response depend on the
+unstated belief or on the outcome. Belief-dependent answering leaves both
+methods unbiased on its own; outcome-dependent answering biases both when there
+is a real effect (complete case by up to about 0.35 points, toward the null),
+without raising complete case's false-positive rate above about 0.05. Six strata are thinner than four, so
 `empty_stratum_rate` climbs faster at small n or high guess or UNKNOWN rates.
 The UNKNOWN lookup fixes the expectancy effect at 7.7; the adjusted estimator is
 nearly insensitive to it under A2, but the unadjusted comparator is not.

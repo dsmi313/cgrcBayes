@@ -28,8 +28,9 @@
 #' explicit assumptions: (A1) each participant answers UNKNOWN with probability
 #' `u`, independent of arm, and (A2) an UNKNOWN responder carries no
 #' expectancy. Among directional responders the guess is correct with
-#' probability `p_cg`. `u_diff` and `aeb_unknown` relax A1 and A2 for stress
-#' tests (see [cgr_unknown_stress()]).
+#' probability `p_cg`. `u_diff` and `aeb_unknown` relax A1 and A2, and
+#' `u_wrong` and `u_outcome` make the UNKNOWN response depend on the unstated
+#' belief or on the outcome, for stress tests (see [cgr_unknown_stress()]).
 #'
 #' @param n Number of participants.
 #' @param p_cg Probability of a correct guess (among directional responders, in
@@ -39,6 +40,12 @@
 #'   answer UNKNOWN with probabilities `u + u_diff / 2` and `u - u_diff / 2`.
 #' @param aeb_unknown Fraction of the expectancy effect carried by UNKNOWN
 #'   responders, applied through the belief they did not state.
+#' @param u_wrong Extra probability of answering UNKNOWN for participants who
+#'   would have guessed wrong, relative to those who would have guessed right.
+#'   Applied so that each arm's average UNKNOWN rate is unchanged.
+#' @param u_outcome Change in the probability of answering UNKNOWN per
+#'   standard deviation of the outcome before expectancy. Positive values make
+#'   participants who are doing better more likely to answer UNKNOWN.
 #' @param dte_on Include the direct treatment effect.
 #' @param aeb_on Include the expectancy effect.
 #' @param noise `"all"` applies the DTE and AEB noise terms to every
@@ -202,21 +209,28 @@ sim_aeb_unknown <- function(n = 230, p_cg = 0.7, u = 0.2,
                             dte_on = FALSE, aeb_on = FALSE, noise = c("all", "arm"),
                             mu_nh = 10, sd_nh = 4, mu_dte = 3, sd_dte = 6.2,
                             mu_aeb = 7.7, sd_aeb = 6.2,
-                            u_diff = 0, aeb_unknown = 0) {
+                            u_diff = 0, aeb_unknown = 0, u_wrong = 0,
+                            u_outcome = 0) {
   noise <- match.arg(noise)
   u_ac <- u + u_diff / 2; u_pl <- u - u_diff / 2
   if (min(u_ac, u_pl) < 0 || max(u_ac, u_pl) > 1)
     stop("u +/- u_diff / 2 must lie in [0, 1].", call. = FALSE)
   trt     <- stats::runif(n) < 0.5
-  is_unk  <- stats::runif(n) < ifelse(trt, u_ac, u_pl)   # A1 when u_diff = 0
+  r_unk   <- stats::runif(n)
   correct <- stats::runif(n) < p_cg
   pt      <- ifelse(correct, trt, !trt)          # perceived treatment (directional)
-  # A2 when aeb_unknown = 0: an UNKNOWN responder's latent belief pt carries a
-  # fraction aeb_unknown of the expectancy effect.
-  b_te    <- ifelse(is_unk, aeb_unknown * pt, as.numeric(pt))
   y <- stats::rnorm(n, mu_nh, sd_nh)
   if (dte_on) y <- y + if (noise == "arm") trt * stats::rnorm(n, mu_dte, sd_dte)
                        else trt * mu_dte + stats::rnorm(n, 0, sd_dte)
+  # Probability of answering UNKNOWN: the arm rate (A1 when u_diff = 0), shifted
+  # for would-be-wrong guessers (u_wrong, mean-preserving within arm) and by the
+  # standardised outcome before expectancy (u_outcome), clamped to [0, 1].
+  p_unk <- ifelse(trt, u_ac, u_pl) + u_wrong * ((!correct) - (1 - p_cg))
+  if (u_outcome != 0) p_unk <- p_unk + u_outcome * (y - mean(y)) / stats::sd(y)
+  is_unk <- r_unk < pmin(pmax(p_unk, 0), 1)
+  # A2 when aeb_unknown = 0: an UNKNOWN responder's latent belief pt carries a
+  # fraction aeb_unknown of the expectancy effect.
+  b_te    <- ifelse(is_unk, aeb_unknown * pt, as.numeric(pt))
   if (aeb_on) y <- y + if (noise == "arm") b_te * stats::rnorm(n, mu_aeb, sd_aeb)
                        else b_te * mu_aeb + stats::rnorm(n, 0, sd_aeb)
   data.frame(condition = ifelse(trt, "AC", "PL"),
@@ -291,14 +305,19 @@ cgr_unknown_operating <- function(n_trials = 500, n = 230, p_cg = 0.7, u = 0.2,
 #' * `u_diff`, the difference in UNKNOWN rates between arms (A1 holds at 0), and
 #' * `aeb_unknown`, the fraction of the expectancy effect that UNKNOWN
 #'   responders carry through the belief they did not state (A2 holds at 0),
+#' * `u_wrong`, how much more often would-be-wrong guessers answer UNKNOWN, and
+#' * `u_outcome`, how strongly answering UNKNOWN depends on the outcome before
+#'   expectancy,
 #'
 #' with and without a direct treatment effect. With no direct effect, the rate
 #' of `P(favourable) > 0.95` is a false-positive rate; with one, it is power.
 #'
-#' @param u_diff,aeb_unknown Values to sweep; see [sim_aeb_unknown()].
+#' @param u_diff,aeb_unknown,u_wrong,u_outcome Values to sweep; see
+#'   [sim_aeb_unknown()].
 #' @inheritParams cgr_operating
 #' @param u Average UNKNOWN-response rate.
-#' @return A data frame with one row per `u_diff`, `aeb_unknown`, scenario and
+#' @return A data frame with one row per combination of the swept values,
+#'   scenario and
 #'   method (`"six-stratum"` or `"complete-case"`): the true direct effect,
 #'   bias, RMSE, 95% coverage, the rate of `P(favourable) > 0.95`, and the
 #'   number of trials in which the estimand was defined.
@@ -307,11 +326,13 @@ cgr_unknown_operating <- function(n_trials = 500, n = 230, p_cg = 0.7, u = 0.2,
 #'                    n_trials = 20, n_draws = 500)
 cgr_unknown_stress <- function(u_diff = c(-0.2, -0.1, 0, 0.1, 0.2),
                                aeb_unknown = c(0, 0.25, 0.5, 1),
+                               u_wrong = 0, u_outcome = 0,
                                n_trials = 500, n = 300, p_cg = 0.7, u = 0.2,
                                mu_dte = 3, mu_aeb = 7.7, n_draws = 2000,
                                seed = 1, direction = 1) {
   set.seed(seed)
-  grid <- expand.grid(dte = c(0, 1), aeb_unknown = aeb_unknown, u_diff = u_diff)
+  grid <- expand.grid(dte = c(0, 1), aeb_unknown = aeb_unknown, u_diff = u_diff,
+                      u_wrong = u_wrong, u_outcome = u_outcome)
   rows <- lapply(seq_len(nrow(grid)), function(g) {
     dte <- grid$dte[g] == 1; truth <- if (dte) mu_dte else 0
     est <- matrix(NA_real_, n_trials, 2, dimnames = list(NULL, c("six", "cc")))
@@ -320,7 +341,9 @@ cgr_unknown_stress <- function(u_diff = c(-0.2, -0.1, 0, 0.1, 0.2),
       d  <- sim_aeb_unknown(n, p_cg, u, dte_on = dte, aeb_on = TRUE,
                             mu_dte = mu_dte, mu_aeb = mu_aeb,
                             u_diff = grid$u_diff[g],
-                            aeb_unknown = grid$aeb_unknown[g])
+                            aeb_unknown = grid$aeb_unknown[g],
+                            u_wrong = grid$u_wrong[g],
+                            u_outcome = grid$u_outcome[g])
       st <- cgr_unknown_strata(d); o <- cgr_unknown_observed(st)
       binary <- st[STRATA]
       if (any(lengths(binary) == 0) || o$n_unknown == 0 ||
@@ -341,6 +364,7 @@ cgr_unknown_stress <- function(u_diff = c(-0.2, -0.1, 0, 0.1, 0.2),
     }
     v <- !is.na(est[, 1])
     data.frame(u_diff = grid$u_diff[g], aeb_unknown = grid$aeb_unknown[g],
+               u_wrong = grid$u_wrong[g], u_outcome = grid$u_outcome[g],
                DTE = grid$dte[g], true = truth,
                method = c("six-stratum", "complete-case"),
                bias = colMeans(est[v, , drop = FALSE]) - truth,

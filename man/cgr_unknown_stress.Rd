@@ -7,6 +7,8 @@
 cgr_unknown_stress(
   u_diff = c(-0.2, -0.1, 0, 0.1, 0.2),
   aeb_unknown = c(0, 0.25, 0.5, 1),
+  u_wrong = 0,
+  u_outcome = 0,
   n_trials = 500,
   n = 300,
   p_cg = 0.7,
@@ -19,7 +21,8 @@ cgr_unknown_stress(
 )
 }
 \arguments{
-\item{u_diff, aeb_unknown}{Values to sweep; see \code{\link[=sim_aeb_unknown]{sim_aeb_unknown()}}.}
+\item{u_diff, aeb_unknown, u_wrong, u_outcome}{Values to sweep; see
+\code{\link[=sim_aeb_unknown]{sim_aeb_unknown()}}.}
 
 \item{n_trials}{Number of simulated trials per scenario.}
 
@@ -42,7 +45,8 @@ cgr_unknown_stress(
 values are.}
 }
 \value{
-A data frame with one row per \code{u_diff}, \code{aeb_unknown}, scenario and
+A data frame with one row per combination of the swept values,
+scenario and
 method (\code{"six-stratum"} or \code{"complete-case"}): the true direct effect,
 bias, RMSE, 95\% coverage, the rate of \code{P(favourable) > 0.95}, and the
 number of trials in which the estimand was defined.
@@ -59,6 +63,9 @@ expectancy on, over a grid of
 \item \code{u_diff}, the difference in UNKNOWN rates between arms (A1 holds at 0), and
 \item \code{aeb_unknown}, the fraction of the expectancy effect that UNKNOWN
 responders carry through the belief they did not state (A2 holds at 0),
+\item \code{u_wrong}, how much more often would-be-wrong guessers answer UNKNOWN, and
+\item \code{u_outcome}, how strongly answering UNKNOWN depends on the outcome before
+expectancy,
 }
 
 with and without a direct treatment effect. With no direct effect, the rate

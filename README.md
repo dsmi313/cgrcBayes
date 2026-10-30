@@ -107,7 +107,8 @@ unbiased and more powerful than dropping UNKNOWN responders when UNKNOWN rates
 are equal across arms and UNKNOWN responders carry no expectancy, and biased when
 either fails. The [stress test](docs/unknown-stress-test.md) quantifies this;
 `cgr_unknown_stress()` and `cgr_unknown_bias_approx()` let you check your own
-design. Report it alongside the complete-case analysis.
+design. Report it alongside the complete-case analysis, which kept a
+false-positive rate of about 5% under every departure tested.
 
 ## What the reproduction shows
 

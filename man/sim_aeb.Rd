@@ -33,7 +33,9 @@ sim_aeb_unknown(
   mu_aeb = 7.7,
   sd_aeb = 6.2,
   u_diff = 0,
-  aeb_unknown = 0
+  aeb_unknown = 0,
+  u_wrong = 0,
+  u_outcome = 0
 )
 }
 \arguments{
@@ -62,6 +64,14 @@ answer UNKNOWN with probabilities \code{u + u_diff / 2} and \code{u - u_diff / 2
 
 \item{aeb_unknown}{Fraction of the expectancy effect carried by UNKNOWN
 responders, applied through the belief they did not state.}
+
+\item{u_wrong}{Extra probability of answering UNKNOWN for participants who
+would have guessed wrong, relative to those who would have guessed right.
+Applied so that each arm's average UNKNOWN rate is unchanged.}
+
+\item{u_outcome}{Change in the probability of answering UNKNOWN per
+standard deviation of the outcome before expectancy. Positive values make
+participants who are doing better more likely to answer UNKNOWN.}
 }
 \value{
 A data frame with columns \code{condition}, \code{guess} and \code{value}, ready
@@ -79,8 +89,9 @@ effect for participants who believe they received the active treatment.
 explicit assumptions: (A1) each participant answers UNKNOWN with probability
 \code{u}, independent of arm, and (A2) an UNKNOWN responder carries no
 expectancy. Among directional responders the guess is correct with
-probability \code{p_cg}. \code{u_diff} and \code{aeb_unknown} relax A1 and A2 for stress
-tests (see \code{\link[=cgr_unknown_stress]{cgr_unknown_stress()}}).
+probability \code{p_cg}. \code{u_diff} and \code{aeb_unknown} relax A1 and A2, and
+\code{u_wrong} and \code{u_outcome} make the UNKNOWN response depend on the unstated
+belief or on the outcome, for stress tests (see \code{\link[=cgr_unknown_stress]{cgr_unknown_stress()}}).
 }
 \examples{
 set.seed(1)

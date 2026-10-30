@@ -472,3 +472,22 @@ test_that("bias approximation matches its two terms", {
   expect_equal(cgr_unknown_bias_approx(0.2, 0.2, 0, 7.7, 0.7), -0.77)
   expect_equal(cgr_unknown_bias_approx(0.2, 0, 0, 7.7, 0.7), 0)
 })
+
+test_that("u_wrong and u_outcome make UNKNOWN selective but keep arm rates", {
+  set.seed(8); d <- sim_aeb_unknown(40000, u = 0.2, u_wrong = 0.3)
+  expect_equal(mean(d$guess == "UNKNOWN"), 0.2, tolerance = 0.01)
+  set.seed(9); d <- sim_aeb_unknown(40000, u = 0.2, u_outcome = 0.2)
+  hi <- d$value > stats::median(d$value)
+  expect_gt(mean(d$guess[hi] == "UNKNOWN") - mean(d$guess[!hi] == "UNKNOWN"), 0.2)
+  set.seed(10); a <- sim_aeb_unknown(300, dte_on = TRUE, aeb_on = TRUE)
+  set.seed(10); b <- sim_aeb_unknown(300, dte_on = TRUE, aeb_on = TRUE,
+                                     u_wrong = 0, u_outcome = 0)
+  expect_identical(a, b)
+})
+
+test_that("belief-dependent UNKNOWN alone leaves complete case unbiased", {
+  r <- cgr_unknown_stress(u_diff = 0, aeb_unknown = 0, u_wrong = 0.3,
+                          n_trials = 200, n_draws = 1000, seed = 4)
+  expect_true(all(abs(r$bias) < 0.3))
+  expect_true(all(c("u_wrong", "u_outcome") %in% names(r)))
+})

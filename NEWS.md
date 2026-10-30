@@ -21,4 +21,6 @@ First release.
 * `cgr_unknown_stress()` and `cgr_unknown_bias_approx()`: a stress test of the
   UNKNOWN extension when UNKNOWN rates differ by arm or UNKNOWN responders carry
   expectancy, with a closed-form approximation to the resulting bias.
-  `sim_aeb_unknown()` gains `u_diff` and `aeb_unknown` to simulate these cases.
+  `sim_aeb_unknown()` gains `u_diff`, `aeb_unknown`, `u_wrong` and `u_outcome`
+  to simulate these cases and UNKNOWN responses that depend on the unstated
+  belief or on the outcome.
