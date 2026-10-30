@@ -18,3 +18,7 @@ First release.
 * `cgrc_unknown()`: a proposed extension that keeps "I don't know" guesses as a
   third response category. It is not part of the original method.
 * `cgrc_app()`: a Shiny app for design and analysis.
+* `cgr_unknown_stress()` and `cgr_unknown_bias_approx()`: a stress test of the
+  UNKNOWN extension when UNKNOWN rates differ by arm or UNKNOWN responders carry
+  expectancy, with a closed-form approximation to the resulting bias.
+  `sim_aeb_unknown()` gains `u_diff` and `aeb_unknown` to simulate these cases.

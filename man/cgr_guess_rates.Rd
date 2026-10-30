@@ -17,6 +17,7 @@ A named list.
 The overall correct-guess rate can hide an asymmetry between arms. This
 returns the active-arm rate, P(guess active | received active), the
 placebo-arm rate, P(guess placebo | received placebo), the overall rate,
-and allocation and guess counts. An UNKNOWN guess is never counted as
+allocation and guess counts, and the UNKNOWN-response rate in each arm
+(\code{unknown_active}, \code{unknown_placebo}). An UNKNOWN guess is never counted as
 correct. Unlike \code{\link[=cgr_strata]{cgr_strata()}}, it works when a stratum is empty.
 }

@@ -31,7 +31,9 @@ sim_aeb_unknown(
   mu_dte = 3,
   sd_dte = 6.2,
   mu_aeb = 7.7,
-  sd_aeb = 6.2
+  sd_aeb = 6.2,
+  u_diff = 0,
+  aeb_unknown = 0
 )
 }
 \arguments{
@@ -53,7 +55,13 @@ participant; \code{"arm"} applies them only within the affected subgroup.}
 
 \item{mu_aeb, sd_aeb}{Mean and SD of the expectancy effect.}
 
-\item{u}{Probability of an UNKNOWN response.}
+\item{u}{Probability of an UNKNOWN response, averaged over the two arms.}
+
+\item{u_diff}{Difference in UNKNOWN rates, active minus placebo. The arms
+answer UNKNOWN with probabilities \code{u + u_diff / 2} and \code{u - u_diff / 2}.}
+
+\item{aeb_unknown}{Fraction of the expectancy effect carried by UNKNOWN
+responders, applied through the belief they did not state.}
 }
 \value{
 A data frame with columns \code{condition}, \code{guess} and \code{value}, ready
@@ -67,10 +75,12 @@ direct treatment effect (DTE) in the active arm, and an optional expectancy
 effect for participants who believe they received the active treatment.
 }
 \details{
-\code{sim_aeb_unknown()} adds an "I don't know" response under two explicit
-assumptions: each participant answers UNKNOWN with probability \code{u},
-independent of arm, and an UNKNOWN responder carries no expectancy. Among
-directional responders the guess is correct with probability \code{p_cg}.
+\code{sim_aeb_unknown()} adds an "I don't know" response. By default it makes two
+explicit assumptions: (A1) each participant answers UNKNOWN with probability
+\code{u}, independent of arm, and (A2) an UNKNOWN responder carries no
+expectancy. Among directional responders the guess is correct with
+probability \code{p_cg}. \code{u_diff} and \code{aeb_unknown} relax A1 and A2 for stress
+tests (see \code{\link[=cgr_unknown_stress]{cgr_unknown_stress()}}).
 }
 \examples{
 set.seed(1)

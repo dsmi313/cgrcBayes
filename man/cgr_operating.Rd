@@ -52,7 +52,7 @@ participant; \code{"arm"} applies them only within the affected subgroup.}
 \item{direction}{\code{1} if higher outcome values are favourable, \code{-1} if lower
 values are.}
 
-\item{u}{Probability of an UNKNOWN response.}
+\item{u}{Probability of an UNKNOWN response, averaged over the two arms.}
 }
 \value{
 A data frame with one row per scenario: the true effect; unadjusted

@@ -92,9 +92,13 @@ coverage of 0.950–0.960 in all four scenarios, and a pure-expectancy
 false-favourable rate of 0.04, against 0.73 for a two-sided t-test. A precomputed lookup over n, p_cg, effect size and
 u drives the app's design panel.
 
-Still conditional: this is validation under A1 and A2 only. Differential
-UNKNOWN rates (A1 relaxed) and UNKNOWN responders who carry expectancy (A2
-relaxed) are not yet characterised. Six strata are thinner than four, so
+Relaxing A1 and A2 is covered in the [stress test](unknown-stress-test.md).
+Either violation biases the six-stratum estimator in proportion to its size
+(up to about 0.6–0.8 points in the grid tested, with false positives rising to
+about 0.2), while dropping UNKNOWN responders (complete case) stays close to
+unbiased at lower power. What is still not characterised is an UNKNOWN response
+that depends on the unstated belief or on the outcome, which would also break
+complete case. Six strata are thinner than four, so
 `empty_stratum_rate` climbs faster at small n or high guess or UNKNOWN rates.
 The UNKNOWN lookup fixes the expectancy effect at 7.7; the adjusted estimator is
 nearly insensitive to it under A2, but the unadjusted comparator is not.

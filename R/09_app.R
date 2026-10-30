@@ -451,7 +451,8 @@ cgr_expected_strata <- function(n, p_cg) {
 #' The overall correct-guess rate can hide an asymmetry between arms. This
 #' returns the active-arm rate, P(guess active | received active), the
 #' placebo-arm rate, P(guess placebo | received placebo), the overall rate,
-#' and allocation and guess counts. An UNKNOWN guess is never counted as
+#' allocation and guess counts, and the UNKNOWN-response rate in each arm
+#' (`unknown_active`, `unknown_placebo`). An UNKNOWN guess is never counted as
 #' correct. Unlike [cgr_strata()], it works when a stratum is empty.
 #'
 #' @param trial A data frame with `condition` (`"AC"` or `"PL"`) and `guess`
@@ -468,7 +469,9 @@ cgr_guess_rates <- function(trial) {
     n_active = n_ac, n_placebo = n_pl,
     guess_active  = sum(guess == "AC"),
     guess_placebo = sum(guess == "PL"),
-    guess_unknown = sum(guess == "UNKNOWN"))
+    guess_unknown = sum(guess == "UNKNOWN"),
+    unknown_active  = if (n_ac) sum(cond == "AC" & guess == "UNKNOWN") / n_ac else NA_real_,
+    unknown_placebo = if (n_pl) sum(cond == "PL" & guess == "UNKNOWN") / n_pl else NA_real_)
 }
 
 #' Feasibility category for a design

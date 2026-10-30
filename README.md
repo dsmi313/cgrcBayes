@@ -102,8 +102,12 @@ cgrc_unknown(trial_u)
 
 UNKNOWN answers are kept as a third category instead of being dropped or scored
 as wrong. The directional correct-guess rate is reweighted while the UNKNOWN
-rate is held fixed. This extension is **not part of the original CGRC**; see the
-summary paper for its assumptions and operating characteristics.
+rate is held fixed. This extension is **not part of the original CGRC**. It is
+unbiased and more powerful than dropping UNKNOWN responders when UNKNOWN rates
+are equal across arms and UNKNOWN responders carry no expectancy, and biased when
+either fails. The [stress test](docs/unknown-stress-test.md) quantifies this;
+`cgr_unknown_stress()` and `cgr_unknown_bias_approx()` let you check your own
+design. Report it alongside the complete-case analysis.
 
 ## What the reproduction shows
 
@@ -133,6 +137,7 @@ with a real effect plus expectancy, it flags the effect in 69% of trials.
 | [Detailed overview](docs/detailed_overview.md) | Full reproduction, worked example, derivations, simulations and sensitivity analyses |
 | [Plain-language guide](docs/plain-language.md) | The method without equations |
 | [Assumptions](docs/assumptions.md) | Every assumption, and what follows if it fails |
+| [Stress test of the extension](docs/unknown-stress-test.md) | How the "I don't know" extension behaves when its assumptions fail |
 | [Open questions](docs/open-questions.md) | Discrepancies with the original paper, ranked |
 | [Sources](docs/sources.md) | Papers and code, and which facts come from each |
 

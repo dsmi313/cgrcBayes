@@ -24,3 +24,6 @@
 #'   psychedelic microdosing. *Scientific Reports* 13:12107.
 #'   \doi{10.1038/s41598-023-34938-7}
 "_PACKAGE"
+
+# Column names used inside ggplot2::aes() in cgr_plot() and cgr_unknown_plot().
+utils::globalVariables(c("cgr", "est", "hi", "lo", "method", "y"))

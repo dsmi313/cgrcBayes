@@ -36,6 +36,8 @@ export(cgr_aeb_inflation)
 export(sim_aeb_unknown)
 export(cgr_unknown_operating)
 export(cgr_unknown_min_stratum)
+export(cgr_unknown_stress)
+export(cgr_unknown_bias_approx)
 
 # plotting and summaries (R/06_plot.R)
 export(cgr_plot)

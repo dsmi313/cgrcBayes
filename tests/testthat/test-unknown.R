@@ -428,3 +428,47 @@ test_that("the Student-t UNKNOWN path runs and returns diagnostics", {
   expect_true(all(is.finite(b$ess)))
   expect_true(is.finite(attr(b, "nu")))
 })
+
+# Stress test of A1 and A2
+
+test_that("sim_aeb_unknown defaults are unchanged by the stress-test knobs", {
+  set.seed(5); a <- sim_aeb_unknown(200, dte_on = TRUE, aeb_on = TRUE)
+  set.seed(5); b <- sim_aeb_unknown(200, dte_on = TRUE, aeb_on = TRUE,
+                                    u_diff = 0, aeb_unknown = 0)
+  expect_identical(a, b)
+})
+
+test_that("u_diff sets arm-specific UNKNOWN rates", {
+  set.seed(6); d <- sim_aeb_unknown(20000, u = 0.2, u_diff = 0.2)
+  unk <- tapply(d$guess == "UNKNOWN", d$condition, mean)
+  expect_equal(unname(unk[["AC"]]), 0.3, tolerance = 0.02)
+  expect_equal(unname(unk[["PL"]]), 0.1, tolerance = 0.02)
+  expect_error(sim_aeb_unknown(10, u = 0.05, u_diff = 0.2), "must lie in")
+})
+
+test_that("aeb_unknown gives UNKNOWN responders expectancy", {
+  set.seed(7)
+  d0 <- sim_aeb_unknown(20000, u = 0.5, aeb_on = TRUE, aeb_unknown = 0)
+  set.seed(7)
+  d1 <- sim_aeb_unknown(20000, u = 0.5, aeb_on = TRUE, aeb_unknown = 1)
+  gap <- function(d) { k <- d$guess == "UNKNOWN"
+    mean(d$value[k & d$condition == "AC"]) - mean(d$value[k & d$condition == "PL"]) }
+  expect_lt(abs(gap(d0)), 0.3)
+  expect_equal(gap(d1), 7.7 * (2 * 0.7 - 1), tolerance = 0.1)
+})
+
+test_that("stress test: six-stratum is biased when A2 fails, complete case is not", {
+  r <- cgr_unknown_stress(u_diff = 0, aeb_unknown = c(0, 1), n_trials = 200,
+                          n_draws = 1000, seed = 3)
+  six <- r[r$method == "six-stratum", ]; cc <- r[r$method == "complete-case", ]
+  expect_true(all(abs(six$bias[six$aeb_unknown == 0]) < 0.25))
+  expect_true(all(six$bias[six$aeb_unknown == 1] > 0.35))
+  expect_true(all(abs(cc$bias) < 0.3))
+  expect_equal(nrow(r), 2 * 2 * 2)
+})
+
+test_that("bias approximation matches its two terms", {
+  expect_equal(cgr_unknown_bias_approx(0.2, 0, 1, 7.7, 0.7), 0.2 * 7.7 * 0.4)
+  expect_equal(cgr_unknown_bias_approx(0.2, 0.2, 0, 7.7, 0.7), -0.77)
+  expect_equal(cgr_unknown_bias_approx(0.2, 0, 0, 7.7, 0.7), 0)
+})
