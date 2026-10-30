@@ -10,3 +10,6 @@
 
 # OS cruft
 .DS_Store
+
+# Knitting cache
+docs/*_cache/

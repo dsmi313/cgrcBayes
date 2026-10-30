@@ -148,13 +148,14 @@ Every exported function has a help page: start with `?cgrc`.
 | `tests/testthat/` | Test suite |
 | `data/` | The pinned public dataset, with its SHA-256 in `PROVENANCE.txt` |
 | `data-raw/` | Scripts that fetch the data and build the design grids |
-| `docs/` | The writeups and figures |
+| `docs/` | The writeups, their figures, and the R Markdown source of the detailed overview |
 
 ## Reproducing
 
 ```sh
 Rscript data-raw/download_data.R   # re-fetch data/pacutes.csv and verify its checksum
 Rscript tests/testthat.R           # run the test suite from source
+Rscript docs/render.R              # regenerate the detailed overview (needs JAGS)
 R CMD build . && R CMD check cgrc.bayes_0.1.0.tar.gz
 ```
 

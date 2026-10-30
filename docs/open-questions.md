@@ -151,8 +151,8 @@ reproduces the published Table 1 and Hedges' g.
 Section 8.8 compares the two procedures over 300 simulated trials with a true
 effect of 3. They agree on the estimand: per-trial point estimates correlate at
 about 0.996 with the same small bias. They differ on the evidence: at matched
-thresholds the posterior flags the effect in about 74% of trials against about
-54% for the averaged p-value. Setting the KDE bandwidth to zero leaves the flag
+thresholds the posterior flags the effect in about 70% of trials against about
+53% for the averaged p-value. Setting the KDE bandwidth to zero leaves the flag
 rate unchanged, so the gap comes from averaging p-values, not from the kernel.
 
 ### U8. Stratum normality
