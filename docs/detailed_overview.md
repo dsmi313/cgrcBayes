@@ -549,7 +549,7 @@ So the difference between the original and this document is **computational stab
 
 ## 8.8 KDE averaged p-value vs the Bayesian posterior — head-to-head
 
-The comparison above matched the KDE *point estimate* to the analytic value, and the two implementations agree there because both target $\Delta(c)$ and averaging mean-preserving resamples does not move a mean. What differs is the *inferential summary*: the original averages a two-sided $t$ -test p-value across resamples, this one summarises a posterior. Those are not the same statement. This subsection puts them head to head — first on the real PANAS data, then as an operating-characteristic comparison over repeated simulated trials (the check noted as an open item in earlier drafts).
+The comparison above matched the KDE *point estimate* to the analytic value, and the two implementations agree there because both target $\Delta(c)$ and averaging mean-preserving resamples does not move a mean. What differs is the *inferential summary*: the original averages a two-sided $t$ -test p-value across resamples, this one summarises a posterior. Those are not the same statement. This subsection puts them head to head — first on the real PANAS data, then as an operating-characteristic comparison over repeated simulated trials.
 
 ```r
 set.seed(7)
@@ -1644,13 +1644,15 @@ Across all three, the behaviour is what the method predicts: CGR adjustment move
 
 # 18 Unresolved questions
 
-1.  **Corrected JAGS prior.** **Resolved in this render.** `cgr_check_backends()` ran against JAGS: posterior means agree to 0.018 across the grid (max \|z\| = 1.34 relative to Monte Carlo error, max R-hat = 1.0001, min ESS = 39664), so the two backends target the same posterior and Section 8’s identity claim is supported. Reproducing this line requires a JAGS install; a render without rjags falls back to the NOT RUN note in Section 8.
-2.  **n = 232 versus the published n = 233.** The source paper (Szigeti 2023) states n = 233 week-1 datapoints under exactly the `w1s1` filter used here, so the analysis rule is confirmed; the public file still gives 232. A genuine one-record gap, unexplained by the papers. See [`docs/sources.md`](sources.md).
-3.  **The 0.72 CGR — explained.** The paper’s Fig 4 caption states the trial CGR is 0.72, but that equals the *placebo-arm* correct-guess rate (0.7234); the analyzed data’s overall CGR is 0.647 (which reproduces the paper’s Table 2), and the author’s 2024 review cites ~65–70%. The Fig 4 reference line is therefore misplaced by ~0.07 — the error the Section 4 identity check catches. Worth one confirmation from the author. See [`docs/sources.md`](sources.md).
-4.  **Exact AEB simulation source not located.** The `noise = "all"` resolution now matches the paper’s published Table 1 (0.05/0.86/0.78/0.99) and Hedges g = 0.4, but the exact Eq. 4 SD scope lives in the paper’s Supplementary Table 1, so this is not yet a line-by-line code check.
-5.  **No head-to-head operating-characteristic comparison** of the KDE procedure against the Bayesian one. Section 9 characterises the estimand, not the two procedures against each other.
-6.  **Benign versus malicious unblinding is not testable** with these data.
-7.  **KDE bandwidth.** The original uses sklearn’s fixed default of 1.0. Because the estimand uses only means this does not matter here, but it was never a deliberate choice and would matter for any tail-based estimand.
+Items 1–4 are resolved; 5–7 remain open. Each is set out in full in [`docs/open-questions.md`](open-questions.md).
+
+1.  **Corrected JAGS prior (resolved).** `cgr_check_backends()` confirms that the conjugate and JAGS backends target the same posterior: differences are within Monte Carlo error across the grid (Section 8.9). Running the check requires JAGS.
+2.  **The 0.72 CGR (resolved).** The paper’s Fig 4 line at 0.72 is a hardcoded constant in the author’s code and equals the *placebo-arm* correct-guess rate (0.7234); the data’s overall CGR is 0.647, which reproduces Table 2, and the author’s 2024 review cites ~65–70%. The identity check in Section 8.6 catches the misplaced line. See [`docs/sources.md`](sources.md).
+3.  **Head-to-head comparison (resolved).** Section 8.8 compares the KDE and Bayesian procedures over repeated simulated trials: they agree on the estimand and differ on the evidence.
+4.  **The author’s source code (resolved).** Located and read; it confirms the estimand’s r and s. The Eq. 4 noise scope used in the AEB simulation (`noise = "all"`) is chosen because it matches Table 1 (0.05/0.86/0.78/0.99) and Hedges g = 0.4, not from a line-by-line code check.
+5.  **n = 232 versus the published n = 233 (open).** The paper states n = 233 under exactly the `w1s1` filter used here; the public file gives 232. A one-record gap the papers do not explain. See [`docs/sources.md`](sources.md).
+6.  **Benign versus malicious unblinding (open).** Not testable with these data.
+7.  **KDE bandwidth (open).** The original uses sklearn’s fixed default of 1.0. Because the estimand uses only means this does not matter here, but it was never a deliberate choice and would matter for any tail-based estimand.
 
 ------------------------------------------------------------------------
 
