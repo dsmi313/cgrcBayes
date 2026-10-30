@@ -18,6 +18,33 @@ The papers do not account for the extra record. The most likely explanations
 are a record withheld from the public release or a typo. Needs the original
 author.
 
+### U11. The published CGR-adjusted rejection rates are not reproduced
+
+The unadjusted Table 1 rates reproduce, but the CGR-adjusted ones do not: the
+KDE procedure flags the effect at CGR 0.50 far less often than published. The
+obvious suspect is Eq. 4, which does not say whether the DTE and AEB noise terms
+apply to the whole sample (`"all"`) or only to the affected subgroup (`"arm"`).
+Trying every combination (300 trials per cell, n = 230, CGR 0.7, 32
+source-faithful resamples, flag = averaged p < 0.05):
+
+| DTE noise | AEB noise | Unadjusted, 4 scenarios | KDE adjusted, DTE only | KDE adjusted, DTE + AEB |
+|---|---|---|---|---|
+| all | all | 0.05 / 0.88 / 0.80 / 0.99 | 0.63 | 0.36 |
+| all | arm | 0.04 / 0.88 / 0.93 / 1.00 | 0.64 | 0.43 |
+| arm | all | 0.06 / 0.96 / 0.78 / 1.00 | 0.81 | 0.46 |
+| arm | arm | 0.04 / 0.95 / 0.93 / 1.00 | 0.80 | 0.57 |
+| **Published** | | **0.05 / 0.86 / 0.78 / 0.99** | **0.84** | **0.82** |
+
+No reading reproduces all six numbers. Gating the DTE noise to the active arm
+matches the adjusted DTE-only rate but overshoots the unadjusted one (0.96
+against 0.86). The published adjusted rate with expectancy on (0.82) is out of
+reach under every reading: adjusting for expectancy should leave power at or
+below the DTE-only rate, since the expectancy term adds noise. Reducing the
+expectancy noise does not help either, because it pushes the unadjusted
+expectancy-only rate to 0.96 or above against the published 0.78. The gap
+therefore lies outside the Eq. 4 noise scope: in the simulation parameters, the
+adjustment step, or the decision rule. Needs the author's simulation code.
+
 ### U9. Guess rates run opposite to the pattern the author reports
 
 Szigeti and Heifets (2024, S3) state that correct-guess rates are "generally

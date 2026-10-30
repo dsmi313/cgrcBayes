@@ -32,7 +32,7 @@ effect was expectancy.
 remotes::install_github("dsmi313/cgrcBayes")
 ```
 
-Tested on R 4.3. The app also needs `shiny`, `ggplot2` and `scales`. The
+Checked on the current R release on every push, and tested locally on R 4.3. The app also needs `shiny`, `ggplot2` and `scales`. The
 optional JAGS backend needs `rjags` and a system
 [JAGS](https://mcmc-jags.sourceforge.io) installation.
 
