@@ -32,6 +32,7 @@ CELL_LABEL <- c("00" = "no effect, no expectancy",
 
 # Named thresholds
 THIN_STRATUM  <- 15     # expected smallest stratum below this = fragile design
+UNKNOWN_GAP   <- 0.10   # arm difference in UNKNOWN rate that biased the extension
 DEGEN_WARN    <- 0.02   # > this share of empty-stratum trials triggers a warning
 P_FAV_LEVEL   <- 0.95   # the single posterior P(favourable) reporting level used
                         # throughout the app, for adjusted AND unadjusted analyses
@@ -595,15 +596,16 @@ server <- function(input, output, session) {
   })
 
   # The analysis-mode control only appears when UNKNOWN responses are present.
-  # Default is to PRESERVE UNKNOWN as a third category.
+  # Complete case is the default: it held its false-positive rate under every
+  # assumption failure in docs/unknown-stress-test.md.
   output$unknown_mode_ui <- renderUI({
     if (!isTRUE(unknown_present())) return(NULL)
     div(class = "verdict feas", style = "padding:8px 10px;",
       radioButtons("unknown_mode",
         HTML("<b>UNKNOWN guesses detected.</b> How should they be handled?"),
-        c("Preserve UNKNOWN as a third response category" = "preserve",
-          "Binary complete-case CGRC (exclude UNKNOWN responses)" = "completecase"),
-        selected = "preserve"))
+        c("Binary complete-case CGRC (exclude UNKNOWN responses; recommended primary analysis)" = "completecase",
+          "Preserve UNKNOWN as a third response category (proposed extension)" = "preserve"),
+        selected = "completecase"))
   })
 
   # The meaningful-difference threshold in outcome units, from either control.
@@ -625,11 +627,17 @@ server <- function(input, output, session) {
                             d[[input$col_value]], unknown_level = ulevel)
     clean <- aud$clean
 
-    # 2. Decide the mode. Preserve UNKNOWN by default when present.
+    # 2. Decide the mode. Complete case by default when UNKNOWN is present.
     present <- aud$has_unknown
-    mode <- if (!present) "binary"
-            else if (identical(input$unknown_mode, "completecase")) "binary"
-            else "unknown"
+    mode <- if (present && identical(input$unknown_mode, "preserve")) "unknown"
+            else "binary"
+    # Whenever UNKNOWN is present, both analyses are reported side by side.
+    # A comparison that cannot be computed (an empty cell) must not block the
+    # main analysis.
+    compare <- if (present) tryCatch(
+      cgrc_unknown_compare(aud$clean, unknown_level = ulevel, n_draws = 8000,
+                           direction = dir, seed = seed),
+      error = function(e) NULL)
 
     # In binary complete-case with UNKNOWN present, drop the UNKNOWN rows here and
     # count them, so the exclusion is explicit rather than silent.
@@ -643,7 +651,8 @@ server <- function(input, output, session) {
     delta <- delta_units(sdy)
 
     base <- list(mode = mode, trial = clean, dir = dir, audit = aud,
-                 delta = delta, seed = seed, n_excl_unknown = n_excl_unknown)
+                 delta = delta, seed = seed, n_excl_unknown = n_excl_unknown,
+                 compare = compare)
 
     if (mode == "unknown") {
       cur_cgr <- NULL
@@ -686,6 +695,7 @@ server <- function(input, output, session) {
       p(class = "muted", "Check the mapping is right before reading the results."),
       tableOutput("b_preview"),
       uiOutput("b_headline"),
+      uiOutput("b_compare"),
       fluidRow(column(5, h4("Strata (from your data)"), tableOutput("b_strata")),
                column(7, h4("Adjusted vs unadjusted"), tableOutput("b_summary"))),
       uiOutput("b_counts"),
@@ -697,6 +707,31 @@ server <- function(input, output, session) {
       fluidRow(column(7, plotOutput("b_rope", height = "300px")),
                column(5, tableOutput("b_sens"))),
       uiOutput("unknown_design_out"))
+  })
+
+  # Both analyses side by side whenever UNKNOWN responses are present.
+  output$b_compare <- renderUI({
+    f <- safe_fit(); if (inherits(f, "cgrc_err") || is.null(f$compare)) return(NULL)
+    cmp <- f$compare; tb <- cmp$table
+    rows <- paste(sprintf(
+      "<tr><td>%s</td><td>%d</td><td>%.2f</td><td>%.2f to %.2f</td><td>%.0f%%</td></tr>",
+      c("Complete case (recommended primary)", "Six-stratum (UNKNOWN preserved)"),
+      tb$n, tb$estimate, tb$cri_lo, tb$cri_hi, 100 * tb$p_favourable), collapse = "")
+    gap <- abs(cmp$u_diff) >= UNKNOWN_GAP
+    div(class = if (gap) "verdict warn" else "verdict feas", HTML(paste0(
+      "<b>Both analyses, at a correct-guess rate of 0.50.</b>",
+      "<table class='table table-condensed' style='margin:6px 0;'>",
+      "<tr><th>Method</th><th>n</th><th>Estimate</th><th>95% CrI</th>",
+      "<th>P(favourable)</th></tr>", rows, "</table>",
+      sprintf("UNKNOWN rate: active arm %.0f%%, placebo arm %.0f%%. ",
+              100 * cmp$unknown_active, 100 * cmp$unknown_placebo),
+      if (gap) sprintf(paste0("<b>The arms differ by %.0f points.</b> A gap this size ",
+                              "biased the six-stratum estimate in the stress tests; ",
+                              "rely on complete case."), 100 * abs(cmp$u_diff))
+      else paste0("In stress tests, complete case kept about a 5% false-positive rate ",
+                  "when the extension's assumptions failed; the six-stratum estimate ",
+                  "has more power when they hold. If the two disagree, rely on ",
+                  "complete case."))))
   })
 
   safe_fit <- reactive(tryCatch(fit(), error = function(e) structure(conditionMessage(e), class = "cgrc_err")))

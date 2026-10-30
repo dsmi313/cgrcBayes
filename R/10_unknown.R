@@ -519,6 +519,54 @@ cgrc_unknown_headline <- function(df, unknown_level = "UNKNOWN", unknown_rate = 
 #' @rdname cgrc_unknown_headline
 print.cgrc_unknown_headline <- function(x, ...) { cat(x$text, "\n"); invisible(x) }
 
+#' Compare the UNKNOWN-preserving and complete-case analyses
+#'
+#' Runs the six-stratum analysis ([cgrc_unknown()]) and the binary CGRC on the
+#' directional responders only (complete case, via [cgrc()]) on the same trial,
+#' and reports both at a correct-guess rate of 0.50 together with the UNKNOWN
+#' rate in each arm.
+#'
+#' The stress tests in `docs/unknown-stress-test.md` found that complete case
+#' kept a false-positive rate of about 0.05 under every departure tested, while
+#' the six-stratum estimate is more powerful when UNKNOWN rates are equal across
+#' arms and UNKNOWN responders carry no expectancy, and biased otherwise. Treat
+#' complete case as the primary analysis. A gap between the arms' UNKNOWN rates
+#' is the one assumption failure the data can show directly.
+#'
+#' @inheritParams cgrc_unknown
+#' @return A list with `table` (one row per method: participants analysed,
+#'   adjusted estimate, 95% credible interval and `P(favourable)`),
+#'   `unknown_active`, `unknown_placebo` and their difference `u_diff`.
+#' @examples
+#' set.seed(1)
+#' trial <- sim_aeb_unknown(n = 300, u = 0.2, dte_on = TRUE, aeb_on = TRUE)
+#' cgrc_unknown_compare(trial, n_draws = 4000)
+cgrc_unknown_compare <- function(df, unknown_level = "UNKNOWN", n_draws = 20000,
+                                 direction = 1, prior = list(), seed = NULL) {
+  trial <- data.frame(
+    condition = cgrc_normalise_arm(df$condition, "treatment received"),
+    guess     = cgrc_normalise_guess(df$guess, allow_unknown = TRUE,
+                                     unknown_labels = unknown_level),
+    value     = as.numeric(df$value), stringsAsFactors = FALSE)
+  trial <- trial[stats::complete.cases(trial), ]
+  cc    <- trial[trial$guess != "UNKNOWN", , drop = FALSE]
+  row <- function(method, n, s) data.frame(
+    method = method, n = n, estimate = s$post_mean[2], cri_lo = s$cri_lo[2],
+    cri_hi = s$cri_hi[2], p_favourable = s$p_favourable[2],
+    stringsAsFactors = FALSE)
+  # Each fit restarts from `seed`, so with the same seed both rows match a
+  # separate cgrc() or cgrc_unknown() call exactly.
+  cfit <- cgrc(cc, n_draws = n_draws, direction = direction, prior = prior,
+               seed = seed)
+  six  <- cgrc_unknown(trial, n_draws = n_draws, direction = direction,
+                       prior = prior, seed = seed)
+  gr <- cgr_guess_rates(trial)
+  list(table = rbind(row("complete case", nrow(cc), cfit$summary),
+                     row("six-stratum", nrow(trial), six$summary)),
+       unknown_active = gr$unknown_active, unknown_placebo = gr$unknown_placebo,
+       u_diff = gr$unknown_active - gr$unknown_placebo)
+}
+
 #' Shared-guess-distribution standardisation (experimental)
 #'
 #' A separate, experimental estimand: neither the CGRC nor the

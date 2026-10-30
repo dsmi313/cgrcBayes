@@ -105,7 +105,7 @@ unknown_csv <- function() {
   f <- tempfile(fileext = ".csv"); write.csv(d, f, row.names = FALSE); f
 }
 
-test_that("Panel B preserves UNKNOWN by default, shows six strata, drops nothing silently", {
+test_that("Panel B preserves UNKNOWN when asked, shows six strata, drops nothing silently", {
   skip_if_not(requireNamespace("shiny", quietly = TRUE), "shiny not installed")
   app_dir <- system.file("app", package = "cgrc.bayes"); skip_if(app_dir == "", "app not installed")
   f <- unknown_csv()
@@ -113,11 +113,13 @@ test_that("Panel B preserves UNKNOWN by default, shows six strata, drops nothing
     session$setInputs(csv = list(datapath = f, name = "u.csv"))
     session$setInputs(col_cond = "condition", col_guess = "guess", col_value = "value",
                       direction = "1", threshold_mode = "sd", rope = 0.1,
-                      seed_b = 1, unknown_level = "UNKNOWN", analyse = 1)
+                      seed_b = 1, unknown_level = "UNKNOWN", unknown_mode = "preserve",
+                      analyse = 1)
     expect_true(unknown_present())                    # detected
     ff <- safe_fit()
     expect_false(inherits(ff, "cgrc_err"))
-    expect_identical(ff$mode, "unknown")              # preserve is the default
+    expect_identical(ff$mode, "unknown")
+    expect_s3_class(ff$compare$table, "data.frame")   # both methods shown
     expect_s3_class(ff$ufit, "cgrc_unknown")
     st <- cgr_unknown_strata(ff$trial)
     expect_equal(length(st), 6L)                      # six strata
@@ -164,6 +166,7 @@ test_that("Panel B does not offer the binary design bridge for an UNKNOWN analys
     session$setInputs(csv = list(datapath = f, name = "u.csv"),
                       col_cond = "condition", col_guess = "guess", col_value = "value",
                       direction = "1", rope = 0.1, seed_b = 1, unknown_level = "UNKNOWN",
+                      unknown_mode = "preserve",
                       analyse = 1)
     session$setInputs(n = 200, pcg = 0.6)
     session$setInputs(do_bridge = 1)                  # must be a no-op in UNKNOWN mode
@@ -200,6 +203,7 @@ test_that("Panel B runs an on-demand UNKNOWN design check (not the binary lookup
     session$setInputs(csv = list(datapath = f, name = "u.csv"),
                       col_cond = "condition", col_guess = "guess", col_value = "value",
                       direction = "1", rope = 0.1, seed_b = 1, unknown_level = "UNKNOWN",
+                      unknown_mode = "preserve",
                       eff = 3, mu_aeb = 7.7, n_trials = 40, analyse = 1)
     expect_identical(safe_fit()$mode, "unknown")
     session$setInputs(run_unknown_design = 1)
@@ -246,5 +250,23 @@ test_that("Panel B errors clearly on an unmappable coding", {
     ff <- safe_fit()
     expect_true(inherits(ff, "cgrc_err"))       # caught, not crashed
     expect_match(as.character(ff), "banana")
+  })
+})
+
+test_that("Panel B defaults to complete case when UNKNOWN is present and shows both", {
+  skip_if_not(requireNamespace("shiny", quietly = TRUE), "shiny not installed")
+  app_dir <- system.file("app", package = "cgrc.bayes"); skip_if(app_dir == "", "app not installed")
+  f <- unknown_csv()
+  shiny::testServer(app_dir, {
+    session$setInputs(csv = list(datapath = f, name = "u.csv"))
+    session$setInputs(col_cond = "condition", col_guess = "guess", col_value = "value",
+                      direction = "1", threshold_mode = "sd", rope = 0.1,
+                      seed_b = 1, unknown_level = "UNKNOWN", analyse = 1)
+    ff <- safe_fit()
+    expect_identical(ff$mode, "binary")
+    expect_equal(ff$n_excl_unknown, 26L)
+    expect_setequal(ff$compare$table$method, c("complete case", "six-stratum"))
+    expect_match(output$b_compare$html, "Both analyses")
+    expect_match(output$b_compare$html, "UNKNOWN rate: active arm")
   })
 })

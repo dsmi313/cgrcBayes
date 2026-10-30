@@ -491,3 +491,21 @@ test_that("belief-dependent UNKNOWN alone leaves complete case unbiased", {
   expect_true(all(abs(r$bias) < 0.3))
   expect_true(all(c("u_wrong", "u_outcome") %in% names(r)))
 })
+
+test_that("cgrc_unknown_compare reports both methods and per-arm UNKNOWN rates", {
+  set.seed(12)
+  d <- sim_aeb_unknown(400, u = 0.2, u_diff = 0.2, dte_on = TRUE)
+  cmp <- cgrc_unknown_compare(d, n_draws = 2000, seed = 1)
+  expect_identical(cmp$table$method, c("complete case", "six-stratum"))
+  expect_equal(cmp$table$n[2] - cmp$table$n[1], sum(d$guess == "UNKNOWN"))
+  expect_equal(cmp$u_diff, cmp$unknown_active - cmp$unknown_placebo)
+  expect_gt(cmp$u_diff, 0.05)
+})
+
+test_that("cgrc_unknown_compare matches separate fits under the same seed", {
+  set.seed(13); d <- sim_aeb_unknown(300, u = 0.2, dte_on = TRUE)
+  cmp <- cgrc_unknown_compare(d, n_draws = 2000, seed = 5)
+  cc  <- d[d$guess != "UNKNOWN", ]
+  expect_equal(cmp$table$estimate[1], cgrc(cc, n_draws = 2000, seed = 5)$summary$post_mean[2])
+  expect_equal(cmp$table$estimate[2], cgrc_unknown(d, n_draws = 2000, seed = 5)$summary$post_mean[2])
+})

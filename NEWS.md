@@ -24,3 +24,7 @@ First release.
   `sim_aeb_unknown()` gains `u_diff`, `aeb_unknown`, `u_wrong` and `u_outcome`
   to simulate these cases and UNKNOWN responses that depend on the unstated
   belief or on the outcome.
+* `cgrc_unknown_compare()`: the six-stratum and complete-case estimates side by
+  side, with the UNKNOWN rate in each arm. When UNKNOWN answers are present, the
+  app now defaults to the complete-case analysis, always shows both, and warns
+  when the arms' UNKNOWN rates differ by 10 points or more.

@@ -11,7 +11,7 @@ The Correct Guess Rate Curve (Szigeti et al. 2023) is reimplemented here with t
 
 **Uncertainty is reported directly.** Stratum means get conjugate Normal-Inverse-Gamma posteriors and are pushed through the same reweighting, giving a credible interval and posterior probabilities for the adjusted contrast in place of an average of resampled p-values. No MCMC.
 
-**“I don’t know” is preserved rather than discarded.** Six-cell reweighting keeps the third response as its own category instead of recoding it as a wrong guess or dropping the participant. It satisfies the same observed-value identity, reduces exactly to the original estimator when no such responses occur, and comes with its own operating characteristics. It is also sensitive to unequal UNKNOWN rates across arms, so the package reports that split as a diagnostic.
+**“I don’t know” is preserved rather than discarded.** Six-cell reweighting keeps the third response as its own category instead of recoding it as a wrong guess or dropping the participant. It satisfies the same observed-value identity, reduces exactly to the original estimator when no such responses occur, and comes with its own operating characteristics. It is also sensitive to unequal UNKNOWN rates across arms and to expectancy among UNKNOWN responders. Stress tests (Section 6.3) show that simply dropping UNKNOWN responders holds its false-positive rate at about 5% under every departure tested, so I treat that complete-case analysis as primary and report the six-stratum estimate alongside it for its extra power.
 
 **A feasibility warning.** The adjustment needs participants in all four cells, and the wrong-guess cells fill only from the minority who guess incorrectly. At a high guess rate with a small sample they empty out and the recalculation is undefined rather than imprecise. `cgr_operating()` runs that check for an arbitrary design, following the paper’s own recommendation that researchers simulate before applying.
 
@@ -234,6 +234,14 @@ The likely mechanism: holding a single pooled `u` and a single pooled `t` (the a
 
 The practical implication is concrete: **if UNKNOWN response rates differ visibly between arms, the default adjustment should not be trusted without checking this.** `t`, the arm split among UNKNOWN responders, is reported by the app and is the diagnostic to inspect; a `t` far from the trial’s overall arm balance is the signal that this simulation’s assumptions may not hold.
 
+## 6.3 Stress tests and the recommended analysis
+
+A wider stress test ([`docs/unknown-stress-test.md`](unknown-stress-test.md)) relaxes A1 and A2 one at a time and makes the UNKNOWN response depend on the unstated belief or on the outcome, comparing the six-stratum estimator with the complete-case alternative of dropping UNKNOWN responders and running the binary CGRC (n = 300, CGR 0.7, UNKNOWN rate 0.2, 500 trials per cell).
+
+When A1 and A2 hold, the six-stratum estimator is unbiased and more powerful than complete case (0.84 against 0.73). When either fails, it is biased in proportion to the failure: by about 0.6 points when UNKNOWN responders carry their full expectancy, and by about 0.75 points when the arms' UNKNOWN rates differ by 20 points, with false positives rising to about 0.2. The bias follows an approximate formula, available as `cgr_unknown_bias_approx()`. Complete case stays close to unbiased in all of these cases. Answering UNKNOWN more often when one would have guessed wrong biases neither method; answering it in step with the outcome biases both when there is a real effect, complete case by up to about 0.35 points toward the null, without raising its false-positive rate.
+
+So the extension is worth its extra power only when its assumptions are credible, and the data can check only one of them, the arm split. The package and the app therefore report both estimates side by side (`cgrc_unknown_compare()`), treat complete case as primary, and flag a gap of 10 points or more between the arms' UNKNOWN rates.
+
 # 7 Three independent trials
 
 Each trial below runs through the same pipeline: audit, detect whether guesses are binary or include UNKNOWN, then apply the four- or six-cell analysis. They were chosen for the regime each illustrates.
@@ -290,7 +298,7 @@ What none of it establishes:
 - Shrinkage under adjustment is not a measure of how much of an effect was expectancy. Randomization identifies the total effect of assignment; guessing happens afterward, so the difficulty is mediation rather than confounding, and reweighting on guesses does not isolate a pharmacological pathway. Loewinger et al. (2026, Appendix E.4.1) derive the causal quantity the CGRC weights correspond to and show it need not equal a controlled direct effect, since it is built from belief-stratified means and so inherits their exposure to collider bias. Szigeti et al. (2023) anticipate a version of this in their own limitations; the Loewinger analysis shows the exposure is more general than that conditional, and gives a counterexample in which the adjusted contrast carries the opposite sign from the controlled direct effect.
 - Reproducing the original validates the computation, not its causal assumptions. The identity is a bug check, not a correctness proof.
 - The simulations validate behavior within their own model.
-- The UNKNOWN extension fixes a data-handling problem, not the causal limits.
+- The UNKNOWN extension fixes a data-handling problem, not the causal limits, and its estimate is only trustworthy when its own assumptions hold (Section 6.3); complete case is the safer primary analysis.
 
 Read as a fragility check rather than a decomposition, the CGRC does something no other available tool does: it puts a number and an uncertainty band on how much a trial result depends on participants having been blind. The package makes that check runnable on a researcher’s own data, with a feasibility diagnostic beforehand and honest uncertainty after, via `cgrc.bayes::cgrc_app()`.
 

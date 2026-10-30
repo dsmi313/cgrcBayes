@@ -1730,6 +1730,13 @@ default-off sensitivities — `ratio_uncertainty` (propagate $r,s,t$),
 separate shared-guess- distribution estimand) — are provided to probe
 those assumptions, not to settle them.
 
+The [stress test](unknown-stress-test.md) has since relaxed A1 and A2 and made
+the UNKNOWN response depend on belief or outcome. When either assumption
+fails, the six-stratum estimate is biased in proportion to the failure, while
+dropping UNKNOWN responders (complete case) stays close to unbiased with a
+false-positive rate of about 5%. The package therefore treats complete case as
+the primary analysis and reports both (`cgrc_unknown_compare()`).
+
 ------------------------------------------------------------------------
 
 # 14 Assumptions and limitations

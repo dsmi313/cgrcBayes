@@ -90,7 +90,8 @@ cgrc_app()
 **Design** reads a precomputed simulation grid and shows, for your planned
 design, power, the false-attribution trade-off with and without adjustment, and
 expected stratum sizes. **Analyse** takes a CSV of your trial, audits every row,
-runs the adjustment, and exports a summary CSV, the curve, a plot and an HTML
+runs the adjustment (showing the complete-case and six-stratum estimates side
+by side when there are "I don't know" answers), and exports a summary CSV, the curve, a plot and an HTML
 report.
 
 ### "I don't know" guesses
