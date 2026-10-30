@@ -23,6 +23,26 @@
 # dispersed mu. Averaging over iterations therefore propagates variance
 # uncertainty into the mean, which is the whole point.
 
+#' Normal-Inverse-Gamma posterior draws for a stratum mean
+#'
+#' Exact joint draws from the conjugate posterior of a normal mean and
+#' variance: first \eqn{\sigma^2} from its Inverse-Gamma marginal, then
+#' \eqn{\mu \mid \sigma^2} from a normal. Draws are independent across
+#' iterations; within a draw, the mean and variance are dependent. The default
+#' prior is vague (`k0 = 1e-6` pseudo-observations for the mean).
+#'
+#' @param y Numeric outcomes for one stratum.
+#' @param n_draws Number of posterior draws. This controls Monte Carlo error in
+#'   posterior summaries only; it is not a sample size.
+#' @param m0,k0 Prior mean, and prior sample size for the mean.
+#' @param a0,b0 Inverse-Gamma shape and scale for the variance.
+#' @param return_sigma2 If `TRUE`, also return the variance draws and the
+#'   posterior hyperparameters.
+#' @return A numeric vector of draws of the mean or, if `return_sigma2 = TRUE`,
+#'   a list with `mu`, `sigma2` and `hyper`.
+#' @examples
+#' set.seed(1)
+#' summary(nig_draws(rnorm(40, mean = 10, sd = 3), n_draws = 2000))
 nig_draws <- function(y, n_draws = 20000, m0 = 0, k0 = 1e-6,
                       a0 = 1e-3, b0 = 1e-3, return_sigma2 = FALSE) {
   n <- length(y); ybar <- mean(y); ss <- sum((y - ybar)^2)
@@ -43,8 +63,23 @@ nig_draws <- function(y, n_draws = 20000, m0 = 0, k0 = 1e-6,
   mu
 }
 
-# n_draws controls Monte Carlo error in the posterior SUMMARIES only.
-# It is not a sample size and carries no information about participants.
+#' Conjugate posterior CGR curve
+#'
+#' Gives each of the four strata an independent Normal-Inverse-Gamma posterior
+#' ([nig_draws()]) and pushes the draws through the CGRC reweighting at every
+#' grid point. No MCMC is involved.
+#'
+#' @inheritParams estimand
+#' @param n_draws Posterior draws per stratum. This controls Monte Carlo error
+#'   in the summaries only; it is not a sample size.
+#' @param prior Named list of prior hyperparameters for [nig_draws()] (`m0`,
+#'   `k0`, `a0`, `b0`). An empty list uses the vague defaults.
+#' @param direction `1` if higher outcome values are favourable, `-1` if lower
+#'   values are.
+#' @return A data frame with one row per grid point: `cgr`, `method`, the
+#'   posterior mean `est`, `sd`, 95% credible limits `lo` and `hi`, `p_fav`
+#'   (the posterior probability that the effect is favourable) and the Monte
+#'   Carlo standard error `mcse`.
 cgr_conjugate <- function(df, grid = seq(0, 1, length.out = 101),
                           n_draws = 20000, prior = list(),
                           direction = 1) {

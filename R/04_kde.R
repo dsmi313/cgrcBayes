@@ -1,21 +1,10 @@
-# Faithful reimplementation of the ORIGINAL Szigeti procedure, for comparison.
-#
-# Paper's description: split into four strata; fit KDE per stratum (scikit-learn
-# KernelDensity, "all parameters left at default value", i.e. Gaussian kernel
-# with bandwidth = 1.0); draw samples so the combined pseudo-dataset has the
-# target CGR; fit outcome ~ treatment; repeat 100 times; average the estimates
-# and p-values.
-#
-# NOTE ON BANDWIDTH: sklearn's default bandwidth is a FIXED 1.0, not a
-# data-adaptive rule. On a 0-100 VAS that is a very narrow kernel; on PANAS it
-# is narrow too. Because the estimand only uses stratum MEANS, and KDE
-# smoothing is mean-preserving, this turns out not to matter for the point
-# estimate - see reports/CHANGELOG.md F4. It would matter for a quantile or
-# tail-based estimand.
-#
-# Averaging p-values across resamples has no accepted inferential
-# interpretation. It is reproduced here to characterise the original method,
-# not endorsed.
+# Reimplementation of the original Szigeti et al. (2023) resampling procedure,
+# for comparison. The paper fits a KDE per stratum with scikit-learn's
+# KernelDensity, "all parameters left at default value": a Gaussian kernel with
+# a fixed bandwidth of 1.0, which is narrow on a 0-100 VAS. Because the
+# estimand uses only stratum means and KDE smoothing preserves means, the
+# bandwidth does not affect the point estimate. It would matter for a quantile
+# or tail-based estimand.
 
 rkde <- function(y, m, bw = 1.0, round_scores = FALSE) {
   # sample from a Gaussian KDE: pick a datum, add N(0, bw^2)
@@ -26,6 +15,45 @@ rkde <- function(y, m, bw = 1.0, round_scores = FALSE) {
   out
 }
 
+#' Original KDE resampling procedure
+#'
+#' Reimplements the resampling procedure of Szigeti et al. (2023) for
+#' comparison with the analytic and Bayesian versions. Each stratum gets a
+#' Gaussian kernel density estimate with fixed bandwidth `bw` (scikit-learn's
+#' default of 1.0). Pseudo-samples are drawn so the combined data have the
+#' target CGR, the arms are compared with a pooled-variance t-test, and
+#' estimates and p-values are averaged over `n_rep` resamples.
+#'
+#' With `source_faithful = TRUE`, stratum proportions are rounded to two
+#' decimals and pseudo-scores to integers, as in the original Python code.
+#' With `FALSE`, exact ratios and unrounded scores are used.
+#'
+#' * `cgr_kde()` runs the procedure at one CGR.
+#' * `cgr_kde_curve()` runs it over a grid and returns the mean and
+#'   across-resample SD of the estimate and p-value, for [szigeti_panel()]. The
+#'   default 13-point grid matches the original code's configuration.
+#' * `cgr_kde_ladder()` compares the KDE average at several resample counts
+#'   with the analytic value, separating Monte Carlo noise from any real
+#'   difference.
+#'
+#' Averaging p-values across resamples has no accepted inferential
+#' interpretation. It is reproduced here to characterise the original method.
+#'
+#' @inheritParams estimand
+#' @param cgr Target correct-guess rate.
+#' @param n_rep Number of resamples.
+#' @param reps Resample counts to compare.
+#' @param bw Kernel bandwidth.
+#' @param source_faithful Reproduce the original code's rounding.
+#' @return `cgr_kde()`: a list with the mean estimate `est`, its Monte Carlo
+#'   standard error `est_mcse`, the mean p-value `p`, the per-resample `draws`,
+#'   the `target_sizes`, and flags. `cgr_kde_curve()`: a data frame with `cgr`,
+#'   `est`, `est_sd`, `p` and `p_sd`. `cgr_kde_ladder()`: a data frame with one
+#'   row per resample count.
+#' @references Szigeti B, Nutt D, Carhart-Harris R, Erritzoe D (2023). The
+#'   difference between 'placebo group' and 'placebo control': a case study in
+#'   psychedelic microdosing. *Scientific Reports* 13:12107.
+#'   \doi{10.1038/s41598-023-34938-7}
 cgr_kde <- function(df, cgr, n_rep = 100, bw = 1.0,
                     source_faithful = TRUE) {
   st <- cgr_strata(df)
@@ -56,12 +84,7 @@ cgr_kde <- function(df, cgr, n_rep = 100, bw = 1.0,
        scores_integer = all_integer)
 }
 
-# Full KDE curve in the ORIGINAL procedure's own terms, for reproducing the
-# published twin-axis figures (see szigeti_panel). For each grid CGR it returns
-# the mean estimate and mean p-value across n_rep resamples, plus the
-# across-resample SD used for the +/- 1 SD bands. The default 13-point grid
-# matches the author's config (np.linspace(0, 1, 13)); the paper's bands are not
-# defined in the text, so +/- 1 SD across resamples is used and labelled as such.
+#' @rdname cgr_kde
 cgr_kde_curve <- function(df, grid = seq(0, 1, length.out = 13),
                           n_rep = 80, bw = 1.0,
                           source_faithful = TRUE) {
@@ -88,10 +111,7 @@ cgr_kde_curve <- function(df, grid = seq(0, 1, length.out = 13),
   }))
 }
 
-# Separates the three sources of difference between original and Bayesian:
-#   (a) Monte Carlo noise from using only 100 resamples
-#   (b) KDE vs a Gaussian stratum model
-#   (c) averaging p-values vs summarising a posterior
+#' @rdname cgr_kde
 cgr_kde_ladder <- function(df, cgr, reps = c(100, 1000, 10000), bw = 1.0,
                            source_faithful = FALSE) {
   st <- cgr_strata(df); rat <- cgr_ratios(st)

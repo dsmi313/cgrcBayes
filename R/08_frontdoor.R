@@ -1,21 +1,31 @@
-# Front door. Two entry points that map onto what a researcher actually wants:
-# adjust my trial, and (as the original paper's limitations section asked) first
-# check whether the adjustment is trustworthy for my design. The second is
-# cgr_operating() in R/05_sim.R; this file adds the one-call adjuster.
+# One-call entry points: cgrc() adjusts a trial and cgrc_headline() summarises
+# it. cgr_operating() in R/05_sim.R checks a design before adjustment.
 
-# cgrc(df): the CGR-adjusted analysis of one trial in a single call. `df` needs
-# columns condition (AC/PL), guess (AC/PL) and value. direction = +1 if higher
-# scores are better, -1 if lower are better. Returns the posterior curve, a
-# summary at the observed CGR and at a target CGR of 0.50 (guessing at chance,
-# not proof of perfect blinding), and the observed
-# CGR. The grid always includes the exact observed CGR, so the unadjusted row is
-# never read off a snapped grid point.
-# `seed` (optional): when given, set.seed(seed) is called before drawing and the
-# value is recorded in the returned object for reproducible reports. Default NULL
-# preserves the previous behaviour (reproducibility via an external set.seed).
-# `outcome` (optional): a label for the outcome being analysed. When non-empty it
-# is added as a leading `outcome` column in the summary table; the default ""
-# omits the column entirely.
+#' CGR-adjusted analysis of a trial
+#'
+#' The main entry point. Fits the conjugate posterior curve
+#' ([cgr_conjugate()]) on a grid that includes the exact observed CGR, then
+#' summarises it at the observed CGR (unadjusted) and at a target CGR of 0.50
+#' (guessing at chance). The 0.50 target is a sensitivity analysis, not proof
+#' of perfect blinding.
+#'
+#' Check that adjustment is reliable for your design first with
+#' [cgr_operating()].
+#'
+#' @inheritParams cgr_conjugate
+#' @param seed Optional RNG seed. When given, it is set before drawing and
+#'   stored in the result.
+#' @param outcome Optional outcome label for the summary table.
+#' @param x A `cgrc` object.
+#' @param ... For `plot()`, passed to [cgr_plot()]. Ignored by `print()`.
+#' @return An object of class `cgrc`: a list with the posterior `curve`, the
+#'   `summary` table from [cgr_summary_table()], `observed_cgr` and `seed`.
+#' @examples
+#' set.seed(1)
+#' trial <- sim_aeb(n = 230, p_cg = 0.7, dte_on = TRUE, aeb_on = TRUE)
+#' fit <- cgrc(trial, n_draws = 4000)
+#' fit
+#' if (requireNamespace("ggplot2", quietly = TRUE)) plot(fit)
 cgrc <- function(df, n_draws = 20000, direction = 1, prior = list(), seed = NULL,
                  outcome = "") {
   if (!is.null(seed)) set.seed(seed)
@@ -29,34 +39,40 @@ cgrc <- function(df, n_draws = 20000, direction = 1, prior = list(), seed = NULL
             class = "cgrc")
 }
 
+#' @rdname cgrc
 print.cgrc <- function(x, ...) {
   cat(sprintf("CGRC-adjusted analysis  (observed CGR = %.4f)\n", x$observed_cgr))
   print(x$summary, row.names = FALSE)
   invisible(x)
 }
 
-# plot(cgrc(df)) draws the effect curve with its 95% credible band and the
-# P(favourable) panel. Needs ggplot2.
+#' @rdname cgrc
 plot.cgrc <- function(x, ...) {
   cgr_plot(x$curve, obs_cgr = x$observed_cgr, ...)
 }
 
-# cgrc_headline(df): the most interpretable summary of a CGR-adjusted analysis -
-# TWO plain probabilities, before and after the blinding correction, because a
-# trialist has two questions the p-value conflates:
-#   * "is there an effect?"       -> P(favourable) = P(direction * Delta > 0)
-#   * "is it big enough to care?"  -> P(meaningful) = P(direction * Delta > delta)
-# Each is reported at the observed CGR (raw) and at a target CGR 0.50 (guessing
-# at chance),
-# with the adjusted point estimate and 95% CrI. No bright-line threshold is
-# imposed - these are continuous probabilities, deliberately not turned back into
-# a "significant/not" verdict. delta defaults to 0.5 * outcome SD: half a standard
-# deviation is the minimum important difference Norman (2003) argues for and the
-# one Szigeti's own 2024 escitalopram trial adopts, so "meaningful" here means
-# clinically meaningful rather than merely non-zero. Increase delta_sd_frac for
-# a more demanding meaningfulness threshold; decrease it if smaller effects are
-# considered meaningful. direction = +1 if higher scores are better, -1 if lower
-# are better.
+#' Two-probability headline for a CGR-adjusted analysis
+#'
+#' Summarises a trial with two plain probabilities, each before and after
+#' reweighting to a CGR of 0.50: the probability that the effect is favourable,
+#' and the probability that it exceeds a meaningful difference `delta`. No
+#' significance cut-off is applied. The default `delta` is half the outcome SD,
+#' the minimal important difference suggested by Norman et al. (2003).
+#'
+#' @inheritParams cgrc
+#' @param delta Meaningful-difference threshold, in outcome units. `NULL` uses
+#'   `delta_sd_frac * sd(value)`.
+#' @param delta_sd_frac Threshold as a fraction of the outcome SD.
+#' @param x A `cgrc_headline` object.
+#' @param ... Ignored.
+#' @return An object of class `cgrc_headline`: a list with the observed CGR,
+#'   `delta`, the adjusted estimate and its 95% credible interval
+#'   (`adj_est`, `adj_lo`, `adj_hi`), the four probabilities (`p_dir_obs`,
+#'   `p_dir_blind`, `p_meaningful_obs`, `p_meaningful_blind`) and a
+#'   one-paragraph `text` summary.
+#' @examples
+#' set.seed(1)
+#' cgrc_headline(sim_aeb(n = 230, p_cg = 0.7, dte_on = TRUE), n_draws = 4000)
 cgrc_headline <- function(df, direction = 1, delta = NULL, delta_sd_frac = 0.5,
                           n_draws = 20000, prior = list(), seed = NULL) {
   if (!is.null(seed)) set.seed(seed)
@@ -87,4 +103,5 @@ cgrc_headline <- function(df, direction = 1, delta = NULL, delta_sd_frac = 0.5,
   structure(res, class = "cgrc_headline")
 }
 
+#' @rdname cgrc_headline
 print.cgrc_headline <- function(x, ...) { cat(x$text, "\n"); invisible(x) }

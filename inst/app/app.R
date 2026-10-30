@@ -30,13 +30,13 @@ CELL_LABEL <- c("00" = "no effect, no expectancy",
                 "01" = "no effect, pure expectancy",
                 "11" = "real effect + expectancy")
 
-## ---- named thresholds (were magic numbers inline) ---------------------------
+# Named thresholds
 THIN_STRATUM  <- 15     # expected smallest stratum below this = fragile design
 DEGEN_WARN    <- 0.02   # > this share of empty-stratum trials triggers a warning
 P_FAV_LEVEL   <- 0.95   # the single posterior P(favourable) reporting level used
                         # throughout the app, for adjusted AND unadjusted analyses
 
-## ---- helpers used only for display -----------------------------------------
+# helpers used only for display
 
 # The operating-characteristics table uses ONE Bayesian criterion everywhere for
 # zero confusion: posterior P(favourable) > 0.95, for BOTH the adjusted and the
@@ -46,7 +46,7 @@ P_FAV_LEVEL   <- 0.95   # the single posterior P(favourable) reporting level use
 op_table_A <- function(lut, n, p_cg, eff, mu_aeb) {
   rows <- do.call(rbind, lapply(list(c(0,0), c(1,0), c(0,1), c(1,1)), function(z)
     cgrc_op_at(lut, n, p_cg, eff, z[1], z[2], mu_aeb)))
-  # honesty markers: * interpolated between grid points; dagger = outside this
+  # markers: * interpolated between grid points; dagger = outside this
   # expectancy level's grid (an edge value is shown under the requested label).
   mark <- ifelse(rows$clamped, " †", ifelse(rows$interpolated, " *", ""))
   out <- data.frame(
@@ -81,7 +81,7 @@ op_table_A_unknown <- function(lut, n, p_cg, eff, u) {
   out
 }
 
-## ---- UI ---------------------------------------------------------------------
+# UI
 
 ui <- navbarPage(
   "CGRC — how reliable is adjustment for my trial design?",
@@ -122,7 +122,7 @@ ui <- navbarPage(
        var b=$('#'+id); if(b.data('label')) b.html(b.data('label'));
        b.prop('disabled',false).removeClass('disabled');});"))),
 
-  ## ===== Panel A: Design ====================================================
+  # Panel A: Design
   tabPanel(
     "Design",
     sidebarLayout(
@@ -207,7 +207,7 @@ ui <- navbarPage(
     )
   ),
 
-  ## ===== Panel B: Analyse your own trial ====================================
+  # Panel B: Analyse your own trial
   tabPanel(
     "Analyse your own trial",
     sidebarLayout(
@@ -251,7 +251,7 @@ ui <- navbarPage(
   )
 )
 
-## ---- server -----------------------------------------------------------------
+# server
 
 server <- function(input, output, session) {
 
@@ -261,7 +261,7 @@ server <- function(input, output, session) {
   ## every Panel A output is exactly the original binary design tool.
   u_on <- reactive(!is.null(LUT_U) && !is.null(input$u_rate) && isTRUE(input$u_rate > 0))
 
-  ## ---- Panel A ----
+  # Panel A
   output$inflation_note <- renderUI({
     inf <- cgr_aeb_inflation(as.numeric(input$mu_aeb), input$pcg)
     div(class = "muted", style = "margin-top:6px;",
@@ -566,7 +566,7 @@ server <- function(input, output, session) {
       }, digits = 3))
   })
 
-  ## ---- Panel B: analyse uploaded trial ----
+  # Panel B: analyse uploaded trial
   raw_csv <- reactive({
     req(input$csv)
     read.csv(input$csv$datapath, stringsAsFactors = FALSE)
@@ -933,7 +933,7 @@ server <- function(input, output, session) {
     s[, keep]
   }, digits = 3)
 
-  # For UNKNOWN mode, the extra design counts the brief asks to show prominently.
+  # For UNKNOWN mode, show the extra design counts prominently.
   output$b_counts <- renderUI({
     f <- safe_fit(); if (inherits(f, "cgrc_err") || f$mode != "unknown") return(NULL)
     st <- cgr_unknown_strata(f$trial); n <- lengths(st)

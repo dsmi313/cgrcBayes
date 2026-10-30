@@ -2,7 +2,7 @@
 # reads for interactive UNKNOWN-design exploration. This is the six-stratum
 # analogue of data-raw/build_lookup.R and uses cgr_unknown_operating() under the
 # UNKNOWN-aware generative model (sim_aeb_unknown): UNKNOWN rate equal across arms,
-# UNKNOWN responders carry no expectancy (see reports/UNRESOLVED.md U10).
+# UNKNOWN responders carry no expectancy (see docs/open-questions.md, U10).
 #
 # Sweep: n x p_cg x true_effect x u, at mu_aeb = 7.7 (the reference expectancy).
 # mu_aeb is held fixed because, under assumption A2, the adjusted estimator's

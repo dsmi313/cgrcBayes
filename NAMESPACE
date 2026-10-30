@@ -1,5 +1,5 @@
-# Hand-maintained. All internal calls to other packages are fully namespaced
-# (stats::, ggplot2::), so no imports are declared here - only exports.
+# Hand-maintained (roxygen2 writes only the man/ pages). Internal calls to other
+# packages are fully namespaced (stats::, ggplot2::), so only exports are listed.
 
 export(STRATA)
 

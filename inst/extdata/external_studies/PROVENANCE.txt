@@ -1,5 +1,5 @@
-External-trial datasets for the vignette's "External validation" section
-========================================================================
+External-trial datasets for the "External validation" section (Section 17) of
+docs/detailed_overview.md
 
 Three independent, publicly archived randomized trials, prepared for cgrc.bayes
 as condition (AC/PL) / guess (AC/PL/UNKNOWN) / outcome tables. Prepared and

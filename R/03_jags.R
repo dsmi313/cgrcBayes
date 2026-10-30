@@ -1,20 +1,33 @@
-# CORRECTED JAGS model.
-#
-# The previous version used independent priors:
-#     mu[j]  ~ dnorm(0, 1.0E-6)
-#     tau[j] ~ dgamma(1.0E-3, 1.0E-3)
-# which is NOT the Normal-Inverse-Gamma model, because NIG has
-# Var(mu | sigma2) = sigma2 / k0, i.e. precision of mu equal to k0 * tau.
-# Fixing the prior precision at 1e-6 regardless of tau is a different model,
-# so the earlier claim that the two backends target an identical posterior
-# was false as written.
-#
-# Corrected below. m0, k0, a0, b0 come through the data list so the two
-# implementations cannot drift apart.
-#
-# STATUS: NOT VERIFIED. No JAGS was available when this was written. Until
-# cgr_check_backends() is run and passes, the identity claim is unsupported.
+# JAGS backend. The prior is the Normal-Inverse-Gamma model of the conjugate
+# backend: under NIG, Var(mu | sigma2) = sigma2 / k0, so the precision of mu is
+# k0 * tau and the prior is written mu[j] ~ dnorm(m0, k0 * tau[j]). The
+# hyperparameters are passed as data so the two backends cannot drift apart;
+# cgr_check_backends() confirms they agree.
 
+#' JAGS backend for the CGR curve
+#'
+#' Fits the four-stratum model in JAGS and evaluates \eqn{\Delta(c)} inside
+#' the model. With `likelihood = "normal"`, the prior is the same
+#' Normal-Inverse-Gamma model as [cgr_conjugate()]; [cgr_check_backends()]
+#' verifies that the two agree. `likelihood = "t"` is a robust Student-t
+#' sensitivity analysis with estimated degrees of freedom
+#' (`nu ~ dexp(0.1)` truncated to 2 to 100).
+#'
+#' `jags_model_string()` returns the model code.
+#'
+#' Requires the \pkg{rjags} package and a system JAGS installation.
+#'
+#' @inheritParams cgr_conjugate
+#' @param likelihood `"normal"` or `"t"`.
+#' @param n_iter Sampling iterations per chain.
+#' @param n_burn Burn-in iterations per chain.
+#' @param n_chains Number of chains.
+#' @param seed Base RNG seed. Chain `i` uses `seed + i`.
+#' @param prior Named list with `m0`, `k0`, `a0` and `b0`.
+#' @return `cgr_jags()`: a data frame like that of [cgr_conjugate()], with
+#'   added `ess` and `rhat` columns and an autocorrelation-corrected `mcse`. For
+#'   the t likelihood, the posterior mean of `nu` is attached as attribute
+#'   `"nu"`. `jags_model_string()`: a character string.
 jags_model_string <- function(likelihood = c("normal", "t")) {
   likelihood <- match.arg(likelihood)
   lik <- if (likelihood == "normal") {
@@ -39,6 +52,7 @@ jags_model_string <- function(likelihood = c("normal", "t")) {
     "  }\n}\n")
 }
 
+#' @rdname jags_model_string
 cgr_jags <- function(df, grid = seq(0, 1, length.out = 101),
                      likelihood = c("normal", "t"),
                      n_iter = 10000, n_burn = 2000, n_chains = 4, seed = 1,
@@ -106,8 +120,25 @@ cgr_jags <- function(df, grid = seq(0, 1, length.out = 101),
   out
 }
 
-# DECISION-1 verification. Reports max abs differences in posterior means,
-# both credible limits, and posterior probabilities, as required.
+#' Check that the conjugate and JAGS backends agree
+#'
+#' Runs both backends over the same grid and reports the largest absolute
+#' differences in posterior means, credible limits and `P(favourable)`, the
+#' largest difference in means measured in Monte Carlo standard errors
+#' (`max_abs_z`), and JAGS convergence diagnostics. The verdict is `PASS` when
+#' `max_abs_z < 5`.
+#'
+#' `cgr_unknown_check_backends()` does the same for the six-stratum UNKNOWN
+#' extension.
+#'
+#' @param df A data frame with columns `condition`, `guess` and `value`, coded
+#'   as for [cgr_strata()] (binary) or [cgr_unknown_strata()] (UNKNOWN).
+#' @inheritParams cgr_conjugate
+#' @param n_draws Conjugate posterior draws per stratum.
+#' @param u_target Target UNKNOWN rate. `NULL` uses the observed rate.
+#' @param jags_args Named list of extra arguments for [cgr_jags()] or
+#'   [cgr_unknown_jags()].
+#' @return A list of agreement statistics and a `verdict` string.
 cgr_check_backends <- function(df, grid = seq(0, 1, length.out = 101),
                                n_draws = 40000, jags_args = list()) {
   a <- cgr_conjugate(df, grid, n_draws = n_draws)
@@ -131,19 +162,28 @@ cgr_check_backends <- function(df, grid = seq(0, 1, length.out = 101),
   res
 }
 
-# ---- UNKNOWN-preserving six-stratum JAGS backend ----------------------------
-#
-# The four-stratum jags_model_string()/cgr_jags() above are UNCHANGED. This adds
-# a parallel six-stratum model for the UNKNOWN extension (see R/10_unknown.R).
-# The six weights are computed inside the model from r, s, t (preserved
-# within-class arm shares) and u (target UNKNOWN rate), all passed as data, so
-# the JAGS and conjugate implementations cannot drift apart. Index mapping is
-# explicit: 1=ACAC, 2=ACPL, 3=ACU, 4=PLAC, 5=PLPL, 6=PLU (UNKNOWN_STRATA order).
-# pooling = "none" is the independent-stratum model (the default, matching the
-# conjugate backend). pooling = "partial" (Section 17G) is an ASSUMPTION-DEPENDENT
-# sensitivity that partially pools the six stratum means toward a learned global
-# mean mu0 with learned spread; the amount of shrinkage is estimated from the
-# data. It is NOT the default and does not match the conjugate posterior.
+#' JAGS backend for the UNKNOWN-preserving extension
+#'
+#' Six-stratum analogue of [cgr_jags()]. The six weights are computed inside
+#' the model from the within-class shares `r`, `s` and `t` and the target
+#' UNKNOWN rate `u`, all passed as data. Strata are indexed in
+#' [UNKNOWN_STRATA] order.
+#'
+#' `pooling = "none"` (the default) uses independent strata and matches
+#' [cgr_unknown_conjugate()]. `pooling = "partial"` is a sensitivity analysis
+#' that partially pools the six stratum means toward a global mean with a
+#' learned spread. It does not match the conjugate posterior.
+#'
+#' @param df A data frame with one row per participant and columns
+#'   `condition` (`"AC"` or `"PL"`), `guess` (`"AC"`, `"PL"` or `"UNKNOWN"`)
+#'   and numeric `value`.
+#' @inheritParams jags_model_string
+#' @param u_target Target UNKNOWN rate. `NULL` uses the observed rate.
+#' @param pooling `"none"` or `"partial"`.
+#' @param prior Named list with `m0`, `k0`, `a0` and `b0`. For partial pooling,
+#'   optionally also `a_mu` and `b_mu`, the gamma prior on the pooling
+#'   precision.
+#' @return As for [cgr_jags()], with attributes `"u"` and `"pooling"`.
 jags_unknown_model_string <- function(likelihood = c("normal", "t"),
                                       pooling = c("none", "partial")) {
   likelihood <- match.arg(likelihood); pooling <- match.arg(pooling)
@@ -184,6 +224,7 @@ jags_unknown_model_string <- function(likelihood = c("normal", "t"),
     "  }\n}\n")
 }
 
+#' @rdname jags_unknown_model_string
 cgr_unknown_jags <- function(df, grid = seq(0, 1, length.out = 101),
                              u_target = NULL, likelihood = c("normal", "t"),
                              pooling = c("none", "partial"),
@@ -257,9 +298,7 @@ cgr_unknown_jags <- function(df, grid = seq(0, 1, length.out = 101),
   out
 }
 
-# Backend-agreement check for the UNKNOWN extension, mirroring
-# cgr_check_backends(). Do NOT claim the two backends agree until this has run
-# and PASSED (max |z| < 5). Uses the observed UNKNOWN rate unless u_target given.
+#' @rdname cgr_check_backends
 cgr_unknown_check_backends <- function(df, grid = seq(0, 1, length.out = 101),
                                        u_target = NULL, n_draws = 40000,
                                        jags_args = list()) {

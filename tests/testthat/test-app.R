@@ -1,5 +1,5 @@
-# Tests for the Shiny app support functions (R/09_app.R) and the acceptance
-# invariants from the app brief. The interpolation/verdict helpers are tested
+# Tests for the Shiny app support functions (R/09_app.R) and invariants of the
+# precomputed lookup. The interpolation/verdict helpers are tested
 # against a small synthetic lookup; the real-lookup invariants skip if the
 # precomputed table has not been built/installed.
 
@@ -98,7 +98,7 @@ test_that("cgrc_op_at snaps mu_aeb to the right expectancy level", {
   expect_equal(unname(cgrc_op_at(L, 100, 0.6, 3, 0, 1, mu_aeb = 14)$freq_sig), 0.99)
 })
 
-# ---- Acceptance invariants against the REAL lookup (skips if not built) ------
+# Acceptance invariants against the REAL lookup (skips if not built)
 
 have_lut <- tryCatch({ cgrc_lookup(); TRUE }, error = function(e) FALSE)
 
@@ -111,10 +111,9 @@ test_that("lookup invariants: coverage calibrated and bias ~0 where feasible", {
   expect_true(mean(abs(feasible$adj_bias)) < 0.15)
 })
 
-test_that("lookup reproduces the brief's acceptance cell (n=120, p_cg=0.85)", {
+test_that("lookup reproduces the reference cell (n=120, p_cg=0.85)", {
   skip_if_not(have_lut, "lookup table not built")
-  # NOTE: the lookup is built at seed = 1; the brief's table is seed = 2, so this
-  # checks the shape (adj_bias small, coverage ~0.95, expectancy false-positive
+  # The lookup is built at seed = 1, so this checks the shape (adj_bias small, coverage ~0.95, expectancy false-positive
   # high) rather than exact equality.
   r <- cgrc_op_at(cgrc_lookup(), 120, 0.85, 3, 0, 1)   # pure expectancy
   expect_gt(r$freq_sig, 0.9)          # unadjusted almost always "significant"

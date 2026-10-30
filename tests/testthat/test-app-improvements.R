@@ -1,5 +1,4 @@
-# Tests for the app-readability/honesty pass (see inst/app/app.R and R/09_app.R).
-# These exercise the acceptance criteria from the improvement brief:
+# Tests for the app's reporting behaviour (inst/app/app.R and R/09_app.R):
 #   - direction-matched frequentist criterion
 #   - separate P>0.95 and P>0.975 outputs
 #   - pure-expectancy relabelling ("false treatment attribution")
@@ -130,11 +129,11 @@ test_that("analysis summary and HTML report build for an uploaded trial", {
                                  n_draws = 2000, seed = 1))
   summ <- cgrc_analysis_summary(f)
   expect_true(all(c("quantity", "value") %in% names(summ)))
-  expect_true(any(grepl("counterfactual", summ$quantity)))     # caveat present
+  expect_true(any(grepl("CGRC-adjusted contrast", summ$quantity))) # estimand label
   expect_true(any(grepl("Smallest stratum size", summ$quantity)))
   html <- cgrc_build_html_report(f)
   expect_true(grepl("<!doctype html>", html, fixed = TRUE))
-  expect_true(grepl("counterfactual", html))                   # not the true effect
+  expect_true(grepl("not automatically the true pharmacological effect", html))
   expect_true(grepl("cgrc.bayes", html))                       # package version line
 })
 

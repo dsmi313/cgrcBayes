@@ -1,30 +1,34 @@
-# Region of practical equivalence (ROPE) decomposition of the CGR-adjusted
-# contrast - a more robust inferential summary than a single tail probability.
-#
-# For each grid point the posterior of Delta(c) is split into three exhaustive,
-# mutually exclusive regions relative to a band [-delta, +delta]:
-#
-#   p_harm       = P(direction * Delta < -delta | y)
-#   p_negligible = P(|Delta| <= delta         | y)
-#   p_benefit    = P(direction * Delta >  delta | y)
-#
-# The three sum to 1 at every CGR. `direction` orients favourability: +1 if
-# higher scores are better, -1 if lower are better.
-#
-# Why this instead of the two-sided tail probability. The tail statistic is
-# magnitude-blind (a tiny precise effect and a large uncertain one can score
-# alike) and it conflates "the posterior is concentrated near zero, so the
-# effect is negligible" with "the posterior is diffuse, so we have learned
-# nothing". The middle region above separates exactly those two states. The
-# cost is that delta must be declared - which is a feature: it forces the
-# practical-significance question into the open. Default is 0.1 * the outcome's
-# pooled SD (a conventional choice); cgr_rope_sensitivity() shows how the
-# conclusion moves as delta widens.
-#
-# A Bayes factor against the point null Delta = 0 is deliberately NOT offered:
-# with the vague default prior (k0 = 1e-6) it depends on the prior width without
-# limit (the Jeffreys-Lindley paradox), so it would measure the prior, not the
-# data. A region-based summary has no such failure mode.
+#' Region of practical equivalence (ROPE) decomposition
+#'
+#' Splits the posterior of the adjusted contrast at each CGR into three
+#' exhaustive regions relative to the band `[-delta, delta]`: meaningful harm,
+#' practically negligible, and meaningful benefit. The three probabilities sum
+#' to one. Unlike a single tail probability, this separates a posterior
+#' concentrated near zero (a negligible effect) from one too diffuse to say
+#' anything. `delta` must be declared, which puts the question of practical
+#' significance in the open; the default is `0.1 * sd(value)`.
+#'
+#' `cgr_rope_sensitivity()` shows how the conclusion at one CGR moves as
+#' `delta` widens. The `cgr_unknown_` versions apply the same decomposition to
+#' the six-stratum UNKNOWN extension.
+#'
+#' A Bayes factor against a point null is deliberately not offered: under the
+#' vague default prior it depends on the prior width without limit (the
+#' Jeffreys-Lindley paradox).
+#'
+#' @param df A data frame with columns `condition`, `guess` and `value`, coded
+#'   as for [cgr_strata()] (binary) or [cgr_unknown_strata()] (UNKNOWN).
+#' @inheritParams cgr_conjugate
+#' @param u_target Target UNKNOWN rate. `NULL` uses the observed rate.
+#' @param delta Half-width of the band, in outcome units. `NULL` uses
+#'   `delta_sd_frac * sd(value)`.
+#' @param delta_sd_frac Half-width as a fraction of the outcome SD.
+#' @param at_cgr CGR at which to evaluate the sensitivity.
+#' @param fracs Half-widths to try, as fractions of the outcome SD.
+#' @return `cgr_rope()`: a data frame with one row per grid point, giving
+#'   `delta`, the posterior mean, 95% and 50% intervals, and `p_harm`,
+#'   `p_negligible` and `p_benefit`. `cgr_rope_sensitivity()`: a data frame
+#'   with one row per fraction.
 cgr_rope <- function(df, grid = seq(0, 1, length.out = 101),
                      n_draws = 20000, delta = NULL, delta_sd_frac = 0.1,
                      direction = 1, prior = list()) {
@@ -49,10 +53,7 @@ cgr_rope <- function(df, grid = seq(0, 1, length.out = 101),
     stringsAsFactors = FALSE)
 }
 
-# How the ROPE conclusion at a single CGR moves as the width delta is varied.
-# A region-based conclusion is only as robust as the region; this is the check
-# that keeps it honest. Returns P(negligible) and P(benefit) at `at_cgr` for a
-# ladder of delta = frac * sd(outcome).
+#' @rdname cgr_rope
 cgr_rope_sensitivity <- function(df, at_cgr = 0.5,
                                  fracs = c(0.05, 0.10, 0.20, 0.30),
                                  n_draws = 12000, direction = 1) {

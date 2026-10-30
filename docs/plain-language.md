@@ -1,7 +1,7 @@
 # The model in plain language
 
-Read this and then try to explain it back without looking. The checkpoints at
-the end are the parts people usually get wrong.
+A walk-through of the method without equations. The three checkpoints at the
+end cover the points most often misunderstood.
 
 ## The problem
 

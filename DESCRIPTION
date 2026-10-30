@@ -4,29 +4,27 @@ Title: Bayesian Implementation of the Correct Guess Rate Curve
 Version: 0.1.0
 Authors@R: person("Dave", "Smith", role = c("aut", "cre"),
     email = "fish.dzs0017@gmail.com")
-Description: A reproduction of the Correct Guess Rate Curve (CGRC) method of
-    Szigeti et al. (2023) and an alternative implementation that expresses the
-    uncertainty around the CGRC-adjusted treatment contrast as a posterior
-    distribution rather than through resampling. Provides the four-stratum
-    estimand, a Normal-Inverse-Gamma conjugate posterior, a corrected JAGS
-    backend and a backend-agreement check, an explicit source-faithful mode for the original
-    kernel-density resampling procedure, the activated-expectancy-bias
-    generative model with a repeated-simulation operating-characteristics
-    study, a region-of-practical-equivalence decomposition, and the
-    reference-line diagnostic. The estimand is unchanged throughout; this is a
-    different way of computing uncertainty around the published quantity, not a
-    different quantity. Also provides an additive, clearly-labelled
-    proposed UNKNOWN-preserving extension that keeps an observed "I do not know"
-    guess as a third response category. Its six-stratum estimand reduces
-    algebraically to the binary CGRC estimand when UNKNOWN mass is zero; this
-    extension is implemented by this package and is not part of the original
-    CGRC formulation.
+Description: Reproduces the Correct Guess Rate Curve (CGRC) of Szigeti et al.
+    (2023) <doi:10.1038/s41598-023-34938-7>, which adjusts a trial's treatment
+    contrast for unblinding by reweighting participants to a target
+    correct-guess rate, and reports the uncertainty around the adjusted
+    contrast as a posterior distribution instead of through resampling. The
+    estimand is unchanged. Provides a conjugate Normal-Inverse-Gamma posterior,
+    a matching JAGS backend with an agreement check, the original kernel
+    density resampling procedure for comparison, the activated-expectancy-bias
+    simulation model for checking a design before analysis, a region of
+    practical equivalence decomposition, and an interactive Shiny app. Also
+    implements a proposed extension, not part of the original method, that
+    keeps "I don't know" guesses as a third response category.
 License: MIT + file LICENSE
+URL: https://github.com/dsmi313/cgrcBayes
+BugReports: https://github.com/dsmi313/cgrcBayes/issues
 Encoding: UTF-8
 Imports:
     stats,
     graphics,
-    grDevices
+    grDevices,
+    utils
 Suggests:
     ggplot2,
     scales,
@@ -37,4 +35,5 @@ Suggests:
     testthat (>= 3.0.0),
     knitr,
     rmarkdown
-RoxygenNote: 7.2.3
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.1

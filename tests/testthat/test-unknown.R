@@ -16,7 +16,7 @@ mk_unknown <- function(counts, seed = 1, arm_shift = 2, sd = 3) {
   }, names(counts), counts))
 }
 
-## ============================ A. Weight algebra =============================
+# A. Weight algebra
 test_that("six weights sum to 1 and split mass by class", {
   for (u in c(0, 0.25, 0.5, 0.8)) for (cc in c(0, 0.3, 0.5686, 1)) {
     for (rr in c(0.1, 0.5, 0.9)) for (ss in c(0.2, 0.7)) for (tt in c(0.3, 0.6)) {
@@ -38,7 +38,7 @@ test_that("arm denominators are positive on the interior of a full design", {
   }
 })
 
-## ============================ B. Observed identity ==========================
+# B. Observed identity
 test_that("Delta(c_obs, u_obs) equals the raw arm-mean difference", {
   set.seed(11)
   for (rep in 1:25) {
@@ -54,7 +54,7 @@ test_that("Delta(c_obs, u_obs) equals the raw arm-mean difference", {
   }
 })
 
-## ======================= C. Reduction to the binary method ==================
+# C. Reduction to the binary method
 test_that("at u = 0 the weights equal the four-stratum weights", {
   for (cc in c(0, 0.3, 0.5, 0.7, 1)) {
     wu <- cgr_unknown_weights(cc, 0, r = 0.4, s = 0.6, t = 0.5)
@@ -89,7 +89,7 @@ test_that("at u = 0 the posterior summaries agree with cgr_conjugate within MC e
   expect_lt(max(abs(a$p_fav - b$p_fav)), 0.02)
 })
 
-## ======================= D. Exact count calculations ========================
+# D. Exact count calculations
 test_that("Santana-Penin count table reproduces exactly", {
   d <- mk_unknown(c(ACAC = 26, ACPL = 1, ACU = 12, PLAC = 21, PLPL = 3, PLU = 14))
   o <- cgr_unknown_observed(cgr_unknown_strata(d))
@@ -112,7 +112,7 @@ test_that("ketamine count table reproduces exactly", {
   expect_true(all(o$counts > 0))
 })
 
-## ============================ E. Normalisation ==============================
+# E. Normalisation
 test_that("UNKNOWN synonyms map correctly and casing/whitespace is ignored", {
   x <- c("drug", "placebo", "UNKNOWN", "unsure", " Uncertain ", "not sure",
          "do not know", "don't know", "I don't know", "DK", "idk")
@@ -144,7 +144,7 @@ test_that("allow_unknown = FALSE rejects UNKNOWN explicitly", {
   expect_error(cgrc_normalise_guess(c("AC", "unsure"), allow_unknown = FALSE), "unsure")
 })
 
-## ======================= F. Sparse and empty cells ==========================
+# F. Sparse and empty cells
 test_that("no UNKNOWN responses reduces to the binary strata and is defined", {
   d <- sim_aeb(200, 0.7, dte_on = TRUE)
   o <- cgr_unknown_observed(cgr_unknown_strata(d))
@@ -205,7 +205,7 @@ test_that("thin cells warn but do not change the estimate", {
   expect_equal(d_obs, raw, tolerance = 1e-10)
 })
 
-## ============================ G. Posterior output ===========================
+# G. Posterior output
 test_that("posterior credible interval is ordered and p_fav lies in [0,1]", {
   d <- mk_unknown(c(ACAC = 25, ACPL = 12, ACU = 15, PLAC = 14, PLPL = 22, PLU = 13), seed = 4)
   set.seed(2); cur <- cgr_unknown_conjugate(d, seq(0, 1, length.out = 11), n_draws = 6000)
@@ -258,7 +258,7 @@ test_that("direction flips which tail counts as favourable", {
   expect_equal(up$p_fav + down$p_fav, 1, tolerance = 0.02)
 })
 
-## ================= Optional sensitivities (Section 17E, 17F) =================
+# Optional sensitivities
 test_that("ratio-uncertainty is off by default and widens intervals when on", {
   d <- mk_unknown(c(ACAC = 25, ACPL = 12, ACU = 15, PLAC = 14, PLPL = 22, PLU = 13), seed = 7)
   set.seed(1); base <- cgr_unknown_conjugate(d, seq(0.1, 0.9, length.out = 9), n_draws = 8000)
@@ -298,7 +298,7 @@ test_that("independent estimand errors when a weighted class has an empty arm ce
   expect_error(cgr_unknown_independent(d, n_draws = 2000), "empty arm cell")
 })
 
-## ============ Generative model + operating characteristics (U10) ============
+# Generative model and operating characteristics
 test_that("sim_aeb_unknown produces the requested UNKNOWN and directional rates", {
   set.seed(1)
   d <- sim_aeb_unknown(60000, p_cg = 0.72, u = 0.3, dte_on = TRUE, aeb_on = TRUE)
@@ -344,7 +344,7 @@ test_that("cgr_unknown_min_stratum is the thinnest of the six expected cells", {
   expect_gt(cgr_unknown_min_stratum(200, 0.7, 0.2), 0)
 })
 
-## =============== UNKNOWN design lookup accessors (Panel A) ===================
+# UNKNOWN design lookup accessors (Panel A)
 make_ulut <- function() {
   grid <- expand.grid(n = c(100, 200, 400), p_cg = c(0.5, 0.7, 0.9),
                       true_effect = c(0, 3), u = c(0.1, 0.3))
@@ -394,7 +394,7 @@ test_that("cgrc_unknown_lookup returns NULL when the rds is absent", {
   expect_true(is.null(cgrc_unknown_lookup()) || is.data.frame(cgrc_unknown_lookup()))
 })
 
-## ============================ H. Backend agreement ==========================
+# H. Backend agreement
 test_that("conjugate and normal-JAGS UNKNOWN backends agree within MC error", {
   skip_if_not(requireNamespace("rjags", quietly = TRUE), "rjags/JAGS not installed")
   d <- mk_unknown(c(ACAC = 40, ACPL = 22, ACU = 20, PLAC = 25, PLPL = 35, PLU = 18), seed = 7)

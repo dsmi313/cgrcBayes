@@ -1,5 +1,5 @@
-# Tests for the cgr_summary_table bug fixes (CH-13 grid-snap guard, CH-14
-# pct_attenuation suppression).
+# Tests for cgr_summary_table(): the grid-snap warning and the suppression of
+# percentage attenuation when it is not meaningful.
 
 make_cur <- function(obs_row, obs_cgr = 0.65) {
   # minimal curve with a row at 0.5 and a row at obs_cgr

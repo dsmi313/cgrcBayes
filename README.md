@@ -1,337 +1,176 @@
-# CGRC — a Bayesian implementation of the Correct Guess Rate Curve
+# cgrc.bayes
 
-A reproduction of the Correct Guess Rate Curve (CGRC) method of
-**Szigeti et al. (2023)** and an alternative implementation that expresses the
-uncertainty around the CGR-adjusted estimate as a **posterior distribution**
-rather than through resampling. For the Bayesian reproduction of the original
-binary CGRC, the estimand is unchanged — this is a different way of computing
-uncertainty around the published quantity, not a different quantity. Separately
-labelled **extensions** (notably the UNKNOWN-preserving estimator, below) do
-introduce genuinely different estimands and are marked as such.
+[![R-CMD-check](https://github.com/dsmi313/cgrcBayes/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/dsmi313/cgrcBayes/actions/workflows/R-CMD-check.yaml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Szigeti et al. motivated CGR = 0.50 as approximating a result under effective
-blinding. Here, `Delta(0.50)` is treated more narrowly as the CGRC reweighted
-estimand: a sensitivity analysis at directional guessing by chance, not proof of
-the causal effect in a genuinely perfectly blinded trial. The method preserves
-the observed arm split within the correct- and incorrect-guess classes. Overall
-target arm mass can change with the relative class masses, so each treatment-arm
-mean is renormalized by its own total weight.
+A Bayesian implementation of the **Correct Guess Rate Curve** (CGRC) of
+[Szigeti et al. (2023)](https://doi.org/10.1038/s41598-023-34938-7), for
+placebo-controlled trials where participants can tell which arm they are in.
+
+When participants work out their allocation, expectancy can inflate the
+treatment contrast. The CGRC reweights the participants a trial already has to
+show what the contrast would be at a different correct-guess rate, usually 0.50
+(guessing at chance). This package:
+
+- **reproduces** the CGRC estimand exactly, and reports its uncertainty as a
+  **posterior distribution** instead of an average of resampled p-values;
+- **checks a design before analysis** by simulating the trial under the
+  activated-expectancy-bias model, as the original paper recommends;
+- **keeps "I don't know" guesses** with a proposed six-stratum extension that
+  reduces exactly to the original when there are none;
+- ships an **interactive Shiny app** so trialists can use all of this without
+  writing code.
+
+The adjusted estimate is a sensitivity analysis for unblinding, not a causal
+decomposition: shrinkage under adjustment does not measure how much of an
+effect was expectancy.
 
 ## Install
 
 ```r
 # install.packages("remotes")
-remotes::install_github(
-  "dsmi313/cgrc.bayes",
-  upgrade = "never",
-  force   = TRUE
-)
+remotes::install_github("dsmi313/cgrcBayes")
 ```
 
-Requires R (>= 4.3). The interactive app additionally needs `shiny`, `ggplot2`
-and `scales`; the backend-agreement check needs `rjags` + a system JAGS install
-(see *Install and reproduce* below).
+Tested on R 4.3. The app also needs `shiny`, `ggplot2` and `scales`. The
+optional JAGS backend needs `rjags` and a system
+[JAGS](https://mcmc-jags.sourceforge.io) installation.
 
-## Use it on your own trial
-
-Szigeti et al. (2023) ask, in their limitations, that "researchers wishing to use
-CGR adjustment should first run simulations to determine whether CGR produces
-acceptable error rates for the parameters of their data." This package is that
-tool.
-
-**Try it right now** — no data file needed; `sim_aeb()` makes a fake unblinded
-trial you can adjust immediately after `R CMD INSTALL .`:
+## Quick start
 
 ```r
 library(cgrc.bayes)
-demo <- sim_aeb(n = 230, p_cg = 0.7, dte_on = TRUE)   # simulated trial
-cgrc(demo)                                            # adjusted estimate + curve
-plot(cgrc(demo))                                      # the effect + P(favourable) figure
+
+set.seed(1)
+trial <- sim_aeb(n = 230, p_cg = 0.7, dte_on = TRUE, aeb_on = TRUE)  # simulated trial
+
+fit <- cgrc(trial)       # posterior curve, summarised at the observed CGR and at 0.50
+fit
+plot(fit)                # effect with 95% credible band, and P(favourable)
+
+cgrc_headline(trial)     # two plain probabilities, before and after adjustment
 ```
 
-**On your own data.** `cgrc()` needs one row per participant and exactly three
-columns — `condition` (AC/PL), `guess` (AC/PL) and `value`. Build that data
-frame however you like, e.g. from a CSV:
+### Your own trial
+
+`cgrc()` needs one row per participant with three columns: `condition`
+(`"AC"`/`"PL"`), `guess` (`"AC"`/`"PL"`) and `value`.
 
 ```r
 d <- read.csv("my_trial.csv")
 my_trial <- data.frame(
-  condition = ifelse(d$arm   == "drug",  "AC", "PL"),   # active / placebo
-  guess     = ifelse(d$guess == "drug",  "AC", "PL"),   # guessed active / placebo
+  condition = ifelse(d$arm   == "drug", "AC", "PL"),
+  guess     = ifelse(d$guess == "drug", "AC", "PL"),
   value     = d$outcome
 )
-cgrc(my_trial)                        # for lower-is-better outcomes: cgrc(my_trial, direction = -1)
+cgrc(my_trial)                    # use direction = -1 if lower scores are better
 ```
 
-**Before trusting it** — the pre-flight simulation the paper asks for, at *your*
-sample size, guess rate and effect size:
+### Check the design first
+
+Szigeti et al. advise that researchers "should first run simulations to
+determine whether CGR produces acceptable error rates for the parameters of
+their data". `cgr_operating()` does that at your sample size and guess rate:
 
 ```r
-cgr_operating(n = 120, p_cg = 0.85, n_trials = 500)   # bias, RMSE, 95% coverage, error rates
+cgr_operating(n = 120, p_cg = 0.85, n_trials = 500)
 ```
 
-**Or use the interactive app** — "How reliable is CGR adjustment for my trial
-design?":
+It reports bias, RMSE, 95% coverage, power and false-positive rates, and the
+share of simulated trials in which a stratum comes up empty. At a high guess
+rate with a small sample, the wrong-guess strata can empty out and the
+adjustment is undefined, not merely imprecise.
+
+### Interactive app
 
 ```r
-install.packages("shiny")
 cgrc_app()
 ```
 
-Panel A (Design) reads a precomputed simulation grid instantly and answers with a
-reliability category rather than a binary safe/unsafe verdict — *reliable under
-simulated conditions*, *use with caution*, *fragile design*, or *adjustment
-undefined in many simulated trials*. It shows a power-vs-n curve, the
-false-treatment-attribution/power trade-off with and without adjustment (a real
-observed arm difference driven by expectancy when the direct effect is zero), and
-an operating-characteristics table. **One Bayesian criterion is used throughout —
-`P(favourable) > 0.95`** — for the headline, the power curve, the trade-off plot
-(comparing the *unadjusted* Bayesian raw-contrast posterior against the
-*CGRC-adjusted* posterior at CGR 0.50), the operating table, and the exact
-simulation, in both binary and UNKNOWN modes. The conventional two-sided t-test is
-retained only as a clearly-labelled frequentist *reference* reported in the text
-below the plot, never plotted beside the Bayesian bars. There is also
-a feasibility readout listing **all four** expected stratum sizes and the stated
-design assumptions, and a button to run the exact simulation at your settings —
-whose results are shown side by side with the interpolated lookup and overlaid on
-the plots. Panel B (Analyse) takes a CSV of your own trial, audits and previews
-the mapped data (missing/removed rows, arm-specific correct-guess rates, all four
-stratum counts, thin-stratum warnings), adjusts it with `cgrc()` under a
-user-visible seed, and shows a compact plain-language summary (the adjusted effect
-is flagged as a counterfactual, not automatically the true pharmacological
-effect), the CGR curve, the ROPE decomposition, and the observed-CGR identity
-check. Results download as a summary CSV, the CGR curve CSV, a plot PNG, and a
-self-contained HTML report (settings, results, warnings, seed, package version).
+**Design** reads a precomputed simulation grid and shows, for your planned
+design, power, the false-attribution trade-off with and without adjustment, and
+expected stratum sizes. **Analyse** takes a CSV of your trial, audits every row,
+runs the adjustment, and exports a summary CSV, the curve, a plot and an HTML
+report.
 
-`cgrc()` returns the CGR-adjusted estimate (at a target correct-guess rate of
-0.50 — guessing at chance, not a claim of proven perfect blinding), a
-95% credible interval, and the posterior probability the effect is favourable.
-`cgr_operating()` tells you whether that adjustment is trustworthy for a trial of
-that size and blinding quality in the first place — including an
-`empty_stratum_rate` column: at a high guess rate with small `n`, a wrong-guess
-stratum can come up empty and the estimand is undefined, so a high rate there is
-a warning that CGR adjustment is fragile for your design.
-
-## Function reference
-
-| Function | Purpose |
-|---|---|
-| `cgrc_app()` | launch the "is CGR safe for my trial?" Shiny app |
-| `cgrc(df)` | one-call adjuster: curve + estimate at CGR 0.50 + P(favourable) |
-| `cgr_operating(n, p_cg, ...)` | pre-flight simulation: bias, RMSE, 95% coverage, error rates (+ `empty_stratum_rate`) |
-| `cgr_min_stratum(n, p_cg)` | expected smallest stratum — the feasibility early warning |
-| `cgr_conjugate(df, grid)` | full Normal-Inverse-Gamma posterior curve over a CGR grid |
-| `cgr_jags(df, likelihood)` | JAGS backend; `"normal"` or robust `"t"` likelihood |
-| `cgr_check_backends(df)` | verify the conjugate and JAGS posteriors agree |
-| `cgr_rope(df)` | region-of-practical-equivalence decomposition (harm/negligible/benefit) |
-| `cgr_kde(df, cgr)`, `cgr_kde_curve(df)` | source-faithful KDE resampling by default; set `source_faithful = FALSE` for exact ratios and unrounded scores |
-| `cgr_reference_line_test(df, orig_cgr)` | check a reference line against the observed-CGR identity |
-| `szigeti_panel(cgr_kde_curve(df), ...)` | reproduce the published twin-axis figure |
-| `cgr_strata`, `cgr_ratios`, `cgr_weights`, `cgr_delta` | the estimand primitives |
-| `sim_aeb(...)` | the activated-expectancy-bias generative model |
-| `cgrc_unknown(df)` | proposed UNKNOWN-preserving extension: six-stratum adjuster keeping "I do not know" |
-| `cgrc_unknown_headline(df)` | two-probability plain-language summary of the UNKNOWN extension |
-| `cgr_unknown_jags(df, pooling)` | six-stratum JAGS backend (`"normal"`/`"t"`; `"none"`/`"partial"` pooling) |
-| `cgr_unknown_check_backends(df)` | verify the UNKNOWN conjugate and JAGS posteriors agree |
-| `cgr_unknown_independent(df)` | experimental shared-guess-distribution estimand (distinct from CGRC) |
-| `sim_aeb_unknown(...)`, `cgr_unknown_operating(...)` | UNKNOWN-aware generative model + operating-characteristics study |
-| `cgrc_normalise_guess(x)` | map a guess column to AC/PL/UNKNOWN; blank/NA stay missing |
-| `cgrc_input_audit(...)`, `cgrc_build_report(f)` | per-row input audit and a Markdown analysis report |
-
-## Extension for UNKNOWN treatment guesses
-
-Real trials often let a participant answer **"I do not know"** to the guess
-question. Those responses must not be silently dropped, counted as incorrect
-guesses, counted as placebo, or split across arms without an explicit assumption.
-`cgrc.bayes` adds a **proposed UNKNOWN-preserving extension of the CGRC reweighting scheme** that keeps them as a third
-response category.
-
-> **This is a proposed extension implemented by cgrc.bayes. It is not part of the
-> original CGRC formulation of Szigeti et al.** The binary four-stratum method
-> and every published result above are unchanged.
-
-**Six strata** instead of four — `ACAC, ACPL, ACU, PLAC, PLPL, PLU` (arm ×
-guess, where `U` = UNKNOWN). Let
-
-```
-u_obs = n_unknown / n_total                          (observed UNKNOWN-response rate)
-c_obs = n_correct / n_directional                    (correct among AC/PL responders)
-r = PLPL/(PLPL+ACAC)   s = ACPL/(ACPL+PLAC)   t = ACU/(ACU+PLU)
-```
-
-be the observed UNKNOWN rate, the **directional** correct-guess rate, and the
-three preserved within-class arm shares. For a target directional CGR `c` and
-target UNKNOWN rate `u` the six weights are
-
-```
-w_ACAC=(1-u)c(1-r)   w_PLPL=(1-u)c·r        (correct class, mass (1-u)c)
-w_ACPL=(1-u)(1-c)s   w_PLAC=(1-u)(1-c)(1-s) (incorrect class, mass (1-u)(1-c))
-w_ACU =u·t           w_PLU =u(1-t)          (UNKNOWN class, mass u)
-```
-
-and the contrast is `Δ(c,u) = μ_AC(c,u) − μ_PL(c,u)` with each arm mean the
-weight-averaged stratum mean within that arm. Key properties:
-
-- **Observed-value identity.** `Δ(c_obs, u_obs)` equals the raw active−placebo
-  mean difference exactly (each within-arm weight reduces to `n_stratum/n_total`).
-- **Reduction.** The six-stratum estimand reduces algebraically to the binary
-  CGRC estimand at `u = 0`.
-- **Observed zero cells are fragile.** Under the default plug-in formulation, an
-  observed zero within a nonempty response class makes its preserved arm share
-  0 or 1, so that cell receives zero target weight. This remains mathematically
-  defined but is a strong empirical assumption in sparse samples and is flagged.
-  An empty required response class remains an "undefined estimand" error.
-
-**Why UNKNOWN ≠ an incorrect guess.** A participant who says "I don't know" has
-made no directional claim; scoring them as wrong (or as placebo) invents
-information the trial did not collect. Holding `u` fixed and reweighting only the
-directional guesses keeps the UNKNOWN mass where it was observed. The extension
-preserves the observed arm split within the UNKNOWN class through `t`; it does
-not force overall active/placebo mass to remain fixed as `c` or `u` changes.
-
-**Interpretation and limits.** `c = 0.50` means *directional guessing at chance
-with the UNKNOWN rate held fixed* — **not** "perfect blinding", and not proof
-that assignment and all three guess categories are independent. The preserved
-share `t` is an assumption (the observed within-UNKNOWN arm ratio), exactly as
-`r, s` are.
-
-**Operating characteristics.** `sim_aeb_unknown()` and `cgr_unknown_operating()`
-characterise the estimator under an explicit generative model — UNKNOWN rate
-equal across arms, UNKNOWN responders carrying no expectancy. Under those
-assumptions `Δ(0.50, u_obs)` is essentially unbiased for the direct effect with
-~0.95 coverage, and controls the pure-expectancy false-favourable rate (~0.05
-adjusted vs ~0.73 for a naive t-test). This is validation *under those
-assumptions*, not a claim that the extension beats the binary method in general
-or that the assumptions hold in any real trial (see `reports/UNRESOLVED.md` U10);
-the six strata are also thinner than four, so degenerate designs appear sooner.
-In the app, Panel B runs this on demand at your trial's n, directional CGR and
-observed UNKNOWN rate, and **Panel A** has an *Expected UNKNOWN-response rate*
-slider: set it above 0 and the whole design tool (verdict, power curve,
-false-treatment-attribution/power trade-off, operating-characteristics table,
-feasibility) switches to the six-stratum estimator, read from a precomputed UNKNOWN lookup
-(`data-raw/build_unknown_lookup.R`). At `u = 0` Panel A is exactly the original
-binary design tool.
+### "I don't know" guesses
 
 ```r
-u_trial <- data.frame(condition = ..., guess = ..., value = ...)   # guess may be UNKNOWN
-cgrc_unknown(u_trial)                 # six-stratum adjusted analysis
-cgrc_unknown_headline(u_trial)        # the two-probability plain-language summary
-cgr_unknown_check_backends(u_trial)   # conjugate vs JAGS agreement (needs JAGS)
+trial_u <- sim_aeb_unknown(n = 300, u = 0.2, dte_on = TRUE)  # guesses include "UNKNOWN"
+cgrc_unknown(trial_u)
 ```
 
-Optional, default-off sensitivities: `cgr_unknown_conjugate(ratio_uncertainty=TRUE)`
-(propagate r/s/t uncertainty), `cgr_unknown_jags(pooling="partial")` (hierarchical
-partial pooling), and `cgr_unknown_independent()` (a *separate*, experimental
-shared-guess-distribution estimand). In the Shiny app, Panel B detects UNKNOWN
-responses and offers "preserve" (default) or "binary complete-case (exclude)"
-with a full input audit and downloadable cleaned data, exclusion log, and report.
+UNKNOWN answers are kept as a third category instead of being dropped or scored
+as wrong. The directional correct-guess rate is reweighted while the UNKNOWN
+rate is held fixed. This extension is **not part of the original CGRC**; see the
+summary paper for its assumptions and operating characteristics.
 
-## What's here
+## What the reproduction shows
+
+On the public microdosing data (Szigeti et al. 2021; week 1, n = 232):
+
+| Outcome | Unadjusted | Adjusted (CGR 0.50) | Published |
+|---|---|---|---|
+| PANAS | 3.16 | 1.08 (95% CrI −1.58 to 3.79) | 3.2 → 1.1 |
+| Mood VAS | 6.34 | 2.52 (95% CrI −3.16 to 8.31) | 6.4 → 2.7 |
+| Energy VAS | 11.38 | 7.11 (95% CrI 2.18 to 12.07) | 11.5 → 6.8 |
+
+As published, only Energy VAS survives adjustment. At the observed CGR the
+reweighted estimate equals the raw arm difference exactly, and the conjugate and
+JAGS backends agree within Monte Carlo error across the whole curve.
+
+Over 500 simulated trials per scenario (n = 230, CGR 0.7), the adjusted
+estimator has bias of at most 0.03 and 95% credible-interval coverage of
+0.936–0.964. When the apparent effect is pure expectancy, it flags a favourable
+effect in 5% of trials against 80% for an unadjusted t-test. The cost is power:
+with a real effect plus expectancy, it flags the effect in 69% of trials.
+
+## Documentation
+
+| | |
+|---|---|
+| [Summary paper](docs/summary.md) | The method, the "I don't know" extension, and three external trials |
+| [Detailed overview](docs/detailed_overview.md) | Full reproduction, worked example, derivations, simulations and sensitivity analyses |
+| [Plain-language guide](docs/plain-language.md) | The method without equations |
+| [Assumptions](docs/assumptions.md) | Every assumption, and what follows if it fails |
+| [Open questions](docs/open-questions.md) | Discrepancies with the original paper, ranked |
+| [Sources](docs/sources.md) | Papers and code, and which facts come from each |
+
+Every exported function has a help page: start with `?cgrc`.
+
+## Repository layout
 
 | Path | Contents |
 |---|---|
-| `CGRC_bayes.Rmd` | the writeup: reproduction, worked example, Bayesian model, validation, simulation study, empirical results, sensitivity, limitations |
-| `R/01_estimand.R` | strata, ratios, weights, Δ(c), analytic curve (base R only) |
-| `R/02_bayes.R` | `nig_draws()` — Normal-Inverse-Gamma posterior; conjugate CGR curve |
-| `R/03_jags.R` | corrected JAGS backend and `cgr_check_backends()` |
-| `R/04_kde.R` | explicit source-faithful and exact/unrounded KDE resampling modes |
-| `R/05_sim.R` | AEB generative model and operating-characteristics study (+ UNKNOWN-aware variant) |
-| `R/06_plot.R` | figures and summary tables |
-| `R/07_rope.R` | `cgr_rope()` region-of-practical-equivalence decomposition |
-| `R/08_frontdoor.R` | `cgrc()` one-call adjuster and `cgrc_headline()` two-probability plain-language summary |
-| `R/09_app.R` | Shiny app support: lookup accessor, interpolation, verdict, input normalisation, audit, report |
-| `R/10_unknown.R` | UNKNOWN-preserving six-stratum extension (estimand, posterior, ROPE, headline, sensitivities) |
-| `inst/app/app.R` | the Shiny app (Design + Analyse panels) |
-| `data-raw/build_lookup.R` | precompute the binary operating-characteristics grid (run once, ~1h) |
-| `data-raw/build_unknown_lookup.R` | precompute the UNKNOWN (six-stratum) design grid over n×p_cg×effect×u (~50 min) |
-| `inst/extdata/cgrc_lookup.rds` | the precomputed binary grid, shipped as package data |
-| `inst/extdata/cgrc_unknown_lookup.rds` | the precomputed UNKNOWN design grid, shipped as package data |
-| `DESCRIPTION`, `NAMESPACE` | R package metadata (`cgrc.bayes`) |
-| `tests/testthat/` | estimand + reproduction + rope + app test suites |
-| `data-raw/download_data.R` | fetch + checksum-verify the public data |
-| `data/pacutes.csv` | pinned public dataset (SHA-256 in `PROVENANCE.txt`) |
-| `inst/extdata/external_studies/` | three audited external-trial datasets (Cavanna, Santana, Lii) for the vignette's external-validation section (`PROVENANCE.txt`) |
-| `00_BRIEF.md` | the design brief, corrections list, and empirical findings |
-| `reports/` | changelog, unresolved items, test status, audit, plain-language, sources |
+| `R/` | The package: estimand, conjugate and JAGS posteriors, KDE reimplementation, simulation, plotting, ROPE, the UNKNOWN extension and app helpers |
+| `inst/app/` | The Shiny app |
+| `inst/extdata/` | Precomputed design grids and three external-trial datasets with provenance |
+| `tests/testthat/` | Test suite |
+| `data/` | The pinned public dataset, with its SHA-256 in `PROVENANCE.txt` |
+| `data-raw/` | Scripts that fetch the data and build the design grids |
+| `docs/` | The writeups and figures |
 
-## Install and reproduce
-
-The code is an installable R package, `cgrc.bayes`; the writeup is a vignette
-that consumes it via `library(cgrc.bayes)`.
+## Reproducing
 
 ```sh
-# system: R (>= 4.3), pandoc, and JAGS (>= 4.3) for the backend check
-R CMD INSTALL .                           # install the cgrc.bayes package
-Rscript data-raw/download_data.R          # fetch + verify data/pacutes.csv
-Rscript -e 'rmarkdown::render("CGRC_bayes.Rmd")'
-Rscript tests/testthat.R                  # runs the testthat suite (source, no install needed)
+Rscript data-raw/download_data.R   # re-fetch data/pacutes.csv and verify its checksum
+Rscript tests/testthat.R           # run the test suite from source
+R CMD build . && R CMD check cgrc.bayes_0.1.0.tar.gz
 ```
 
-R package dependencies: `ggplot2`, `digest`, `testthat`, `knitr`, `rmarkdown`,
-and — for the backend check — `rjags` + `coda` (needs a system JAGS install).
-Without JAGS the render still completes; the conjugate-vs-JAGS check is skipped
-and reported as not run. The test suite sources `R/` directly, so it does not
-require the package to be installed first.
+## Citation
 
-## Status of this reproduction
+Run `citation("cgrc.bayes")`, or use the "Cite this repository" button on
+GitHub. Please also cite the original method:
 
-- The estimand reproduces the published Table 2 (PANAS 3.2 → 1.1, Energy VAS
-  11.5 → 6.8, only Energy surviving adjustment). The observed-CGR identity is
-  exact.
-- The conjugate posterior and the corrected 4-chain JAGS model target the **same
-  posterior** (agreement to ≤ 0.006 in the mean across the grid; verified with
-  JAGS 4.3.2).
-- Over 500 simulated trials per scenario the adjusted estimator is unbiased
-  (|bias| ≤ 0.05) with nominal 95% credible-interval coverage (0.936–0.964).
+> Szigeti B, Nutt D, Carhart-Harris R, Erritzoe D (2023). The difference
+> between 'placebo group' and 'placebo control': a case study in psychedelic
+> microdosing. *Scientific Reports* 13:12107.
+> <https://doi.org/10.1038/s41598-023-34938-7>
 
-The Bayesian version is **not** claimed to be better inference about the trial:
-it targets the same estimand, removes a Monte Carlo error term with no
-scientific content, and replaces an average of p-values with a posterior
-probability. Open questions and the source-paper checks behind them are in
-`reports/UNRESOLVED.md`; every substantive change is logged in
-`reports/CHANGELOG.md`.
+This project reproduces and re-analyses published work. It is independent of,
+and not endorsed by, the original authors.
 
-## Sources
+## License
 
-The four references below play distinct roles; only the first two underpin the
-package. Full details and per-finding citations are in `reports/SOURCES.md`.
-
-**Primary methodological source** — the original CGRC method paper reproduced by
-`cgrc.bayes`:
-
-- Szigeti B, Nutt D, Carhart-Harris R, Erritzoe D. 2023. "The difference between
-  'placebo group' and 'placebo control': a case study in psychedelic
-  microdosing." *Scientific Reports* 13:12107.
-  <https://doi.org/10.1038/s41598-023-34938-7>
-
-  The binary CGRC estimand, the activated-expectancy-bias (AEB) framework, the
-  correct-guess-rate curves, and the empirical reproduction here are all based on
-  this work.
-
-**Empirical dataset** — the source study for the public data reanalysed here:
-
-- Szigeti B, et al. 2021. "Self-blinding citizen science to explore psychedelic
-  microdosing." *eLife* 10:e62878. <https://doi.org/10.7554/eLife.62878>
-
-  Provides the public dataset shipped as `data/pacutes.csv`; the package pins a
-  checksum-verified copy of these data for reproducibility (see `PROVENANCE.txt`).
-
-**Supporting literature** — contextual, *not* a methodological source for CGRC:
-
-- Szigeti B, Heifets BD. 2024. "Expectancy Effects in Psychedelic Trials."
-  *Biological Psychiatry: Cognitive Neuroscience and Neuroimaging* 9:512–521.
-  <https://doi.org/10.1016/j.bpsc.2024.02.004>
-
-  Supports interpretation of expectancy effects, blinding failure, and the
-  approximate correct-guess rates discussed in the documentation.
-
-**Related expectancy literature** — context only; does not provide the CGRC
-method or the data used by the package:
-
-- Szigeti B, Weiss B, Rosas FE, Erritzoe D, Nutt D, Carhart-Harris R. 2024.
-  "Assessing expectancy and suggestibility in a trial of escitalopram v.
-  psilocybin for depression." *Psychological Medicine* 54:1717–1724.
-  <https://doi.org/10.1017/S0033291723003653>
-
-This project reproduces and re-analyses published work; it is independent of and
-not endorsed by the original authors.
+MIT © Dave Smith

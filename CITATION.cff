@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below, and also cite the original CGRC method."
+title: "cgrc.bayes: Bayesian Implementation of the Correct Guess Rate Curve"
+version: 0.1.0
+license: MIT
+repository-code: "https://github.com/dsmi313/cgrcBayes"
+authors:
+  - family-names: Smith
+    given-names: Dave
+references:
+  - type: article
+    title: "The difference between 'placebo group' and 'placebo control': a case study in psychedelic microdosing"
+    authors:
+      - family-names: Szigeti
+        given-names: B.
+      - family-names: Nutt
+        given-names: D.
+      - family-names: Carhart-Harris
+        given-names: R.
+      - family-names: Erritzoe
+        given-names: D.
+    journal: "Scientific Reports"
+    volume: 13
+    start: 12107
+    year: 2023
+    doi: "10.1038/s41598-023-34938-7"

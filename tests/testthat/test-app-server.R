@@ -1,7 +1,7 @@
 # End-to-end test of the Shiny app's server logic via shiny::testServer (no
 # browser). Exercises Panel B: CSV upload -> column mapping -> coding
 # normalisation -> cgrc() -> ROPE, and asserts the observed-CGR identity holds
-# on the uploaded data (the check the brief requires).
+# on the uploaded data.
 
 test_that("Panel B analyses an uploaded trial and the identity holds", {
   skip_if_not(requireNamespace("shiny", quietly = TRUE), "shiny not installed")
@@ -33,7 +33,7 @@ test_that("Panel B analyses an uploaded trial and the identity holds", {
   })
 })
 
-test_that("Panel B reproduces the Rmd's PANAS analysis on the real data", {
+test_that("Panel B reproduces the PANAS analysis on the real data", {
   skip_if_not(requireNamespace("shiny", quietly = TRUE), "shiny not installed")
   skip_on_cran()
   app_dir <- system.file("app", package = "cgrc.bayes")
@@ -59,7 +59,7 @@ test_that("Panel B reproduces the Rmd's PANAS analysis on the real data", {
     expect_equal(ff$fit$observed_cgr, 0.6466, tolerance = 1e-3)
     z <- cgr_reference_line_test(ff$trial, ff$fit$observed_cgr)
     expect_lt(abs(z$D_at_obs - z$raw_mean_diff), 1e-10)   # no-op identity, exact
-    # posterior summaries match the Rmd to Monte Carlo precision
+    # posterior summaries match the analytic PANAS values to Monte Carlo precision
     s <- ff$fit$summary
     expect_equal(s$post_mean[1], 3.157, tolerance = 0.10)  # unadjusted
     expect_equal(s$post_mean[2], 1.080, tolerance = 0.15)  # adjusted at 0.50
@@ -87,7 +87,7 @@ test_that("Panel B fails gracefully when an uploaded trial has an empty stratum"
   })
 })
 
-# ---- UNKNOWN-preserving extension in the app --------------------------------
+# UNKNOWN-preserving extension in the app
 
 # a CSV with all six strata, two genuinely-missing rows, and mixed UNKNOWN tokens
 unknown_csv <- function() {

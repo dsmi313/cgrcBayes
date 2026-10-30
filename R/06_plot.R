@@ -1,7 +1,28 @@
-# Plotting. The primary Bayesian figure shows posterior mean, 95% credible
-# interval, and P(favourable) - NOT a p-value-shaped curve. There is no
-# horizontal line at 0.05 anywhere in this file.
+# Plotting. The main figure shows the posterior mean, 95% credible interval and
+# P(favourable). Only szigeti_panel(), which reproduces the published figure,
+# draws p-values.
 
+#' Plot a posterior CGR curve
+#'
+#' Two stacked panels over the correct-guess rate: the treatment effect with
+#' its 95% credible band, and the posterior probability that the effect is
+#' favourable. Dashed vertical lines mark chance (0.50) and the observed CGR.
+#'
+#' `cgr_unknown_plot()` is the UNKNOWN-extension version. Its x-axis is the
+#' directional CGR, and the caption gives the UNKNOWN rate held fixed.
+#'
+#' Requires \pkg{ggplot2}.
+#'
+#' @param cur A curve data frame from [cgr_conjugate()], [cgr_jags()] or
+#'   [cgr_unknown_conjugate()]. `cgr_plot()` colours curves by their `method`
+#'   column, so curves from several backends can be combined with `rbind()`.
+#' @param obs_cgr Observed (directional) CGR.
+#' @param u UNKNOWN-response rate held fixed.
+#' @param title Optional plot title.
+#' @param show_95_line Draw a dotted reference line at probability 0.95.
+#' @param direction_label Word used in the probability panel's label, such as
+#'   `"positive"` or `"favourable"`.
+#' @return A ggplot object.
 cgr_plot <- function(cur, obs_cgr, title = NULL,
                      show_95_line = TRUE, direction_label = "positive") {
   if (!requireNamespace("ggplot2", quietly = TRUE)) {
@@ -55,12 +76,7 @@ cgr_plot <- function(cur, obs_cgr, title = NULL,
                    legend.position = "top")
 }
 
-# One-dimensional plot for the proposed UNKNOWN-preserving extension. The x-axis is the
-# DIRECTIONAL correct-guess rate (correct among AC/PL responders), NOT the overall
-# correct-guess rate. c = 0.50 is directional guessing at chance, with the UNKNOWN
-# rate held fixed - deliberately not labelled "perfect blinding" unqualified. The
-# held UNKNOWN rate is shown in the caption. `cur` is the output of
-# cgr_unknown_conjugate() (or the curve slot of a cgrc_unknown object).
+#' @rdname cgr_plot
 cgr_unknown_plot <- function(cur, obs_cgr, u, title = NULL,
                              show_95_line = TRUE, direction_label = "positive") {
   if (!requireNamespace("ggplot2", quietly = TRUE)) stop("needs ggplot2", call. = FALSE)
@@ -98,12 +114,25 @@ cgr_unknown_plot <- function(cur, obs_cgr, u, title = NULL,
                    plot.subtitle = ggplot2::element_text(size = ggplot2::rel(0.85)))
 }
 
-# Reproduce Szigeti's published twin-axis figure in its OWN visual grammar so a
-# reader can lay it beside the paper: blue averaged p-value on the left axis, red
-# treatment estimate on the right, a magenta 0.05 threshold, a green "Original
-# CGR" line and a black "True blind CGR" (0.5) line. `z` is the output of
-# cgr_kde_curve(). This deliberately plots the p-value presentation the rest of
-# the package argues against - because that is what reproduction means.
+#' Reproduce the published twin-axis CGRC figure
+#'
+#' Draws the output of [cgr_kde_curve()] in the style of Szigeti et al.
+#' (2023), Figure 4: the averaged p-value on the left axis, the treatment
+#' estimate on the right, bands of plus or minus one SD across resamples, a
+#' line at 0.05, and vertical lines at the original and chance-level CGRs. It
+#' reproduces the published p-value presentation for comparison; the rest of
+#' the package reports posterior probabilities instead. Uses base graphics.
+#'
+#' @param z Output of [cgr_kde_curve()].
+#' @param title Panel title.
+#' @param orig_cgr CGR at which to draw the "Original CGR" line.
+#' @param blind_cgr CGR at which to draw the chance-level line.
+#' @param legend Draw a legend.
+#' @return `NULL`, invisibly. Called for its side effect.
+#' @references Szigeti B, Nutt D, Carhart-Harris R, Erritzoe D (2023). The
+#'   difference between 'placebo group' and 'placebo control': a case study in
+#'   psychedelic microdosing. *Scientific Reports* 13:12107.
+#'   \doi{10.1038/s41598-023-34938-7}
 szigeti_panel <- function(z, title, orig_cgr, blind_cgr = 0.5, legend = FALSE) {
   lo_p <- -0.05; hi_p <- 0.75                       # left axis, as published
   elo <- min(z$est - z$est_sd, na.rm = TRUE)
@@ -152,14 +181,22 @@ szigeti_panel <- function(z, title, orig_cgr, blind_cgr = 0.5, legend = FALSE) {
   invisible(NULL)
 }
 
-# Summary at the two CGRs that matter, with attenuation reported both ways.
-#
-# The observed-CGR row must be read off the curve at EXACTLY the observed CGR,
-# not the nearest grid point. On a 101-point grid c_obs = 0.6466 would snap to
-# 0.65, and Delta(0.65) overstates Delta(0.6466) by ~0.05 - the same class of
-# grid error this document criticises elsewhere. `at()` therefore warns if the
-# grid does not contain the target within `tol`; pass a grid that includes
-# c_obs (e.g. sort(unique(c(grid, c_obs)))) so no snapping occurs.
+#' Summarise a CGR curve at the observed CGR and at 0.50
+#'
+#' Reads the curve at exactly the observed CGR (unadjusted) and at 0.50
+#' (adjusted), and reports absolute and percentage attenuation. It warns when
+#' the grid has no point within `tol` of a target, because reading a nearby
+#' grid point instead can shift the estimate noticeably; include the observed
+#' CGR in the grid, as [cgrc()] does. Percentage attenuation is `NA` when the
+#' unadjusted 95% credible interval includes zero.
+#'
+#' @param cur Curve data frame from [cgr_conjugate()] or
+#'   [cgr_unknown_conjugate()].
+#' @param obs_cgr Observed (directional) CGR.
+#' @param u UNKNOWN-response rate held fixed, reported in the table.
+#' @param label Optional outcome label, added as a leading `outcome` column.
+#' @param tol Tolerance for matching grid points.
+#' @return A two-row data frame.
 cgr_summary_table <- function(cur, obs_cgr, label = "", tol = 1e-6) {
   at <- function(t) {
     i <- which.min(abs(cur$cgr - t))

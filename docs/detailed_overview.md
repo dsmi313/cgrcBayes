@@ -298,7 +298,7 @@ plot(sqrt(pd$sigma2), pd$mu, pch = 16, cex = 0.3,
 abline(h = mean(st$ACAC), col = "red", lty = 2)
 ```
 
-![](https://raw.githubusercontent.com/dsmi313/cgrc.bayes/main/report-files/full/fig01.png)
+![](https://raw.githubusercontent.com/dsmi313/cgrcBayes/main/docs/figures/full/fig01.png)
 
 ## 6.2 `n_draws` is not a sample size
 
@@ -357,7 +357,7 @@ for (i in seq_along(CFG)) {
 }
 ```
 
-![](https://raw.githubusercontent.com/dsmi313/cgrc.bayes/main/report-files/full/fig02.png)
+![](https://raw.githubusercontent.com/dsmi313/cgrcBayes/main/docs/figures/full/fig02.png)
 
 ```r
 par(mfrow = c(1, 1))
@@ -376,7 +376,7 @@ for (i in seq_along(sb)) {
 }
 ```
 
-![](https://raw.githubusercontent.com/dsmi313/cgrc.bayes/main/report-files/full/fig03.png)
+![](https://raw.githubusercontent.com/dsmi313/cgrcBayes/main/docs/figures/full/fig03.png)
 
 ```r
 par(mfrow = c(1, 1))
@@ -455,7 +455,7 @@ Rounding shifts the unadjusted PANAS estimate by about +0.01 and Energy VAS by a
 
 ## 8.6 The reference-line test
 
-The identity above makes the position of the reference line *checkable* rather than decorative: since $\Delta(c_{obs})$ equals the paper’s own reported unadjusted estimate, a line drawn at some claimed CGR is only in the right place if $\Delta$ there equals that value. The paper’s Figure 4 draws its “original CGR” line at **0.72** (Fig 4 caption; see `reports/SOURCES.md`), so this tests 0.72 against the computed observed CGR.
+The identity above makes the position of the reference line *checkable* rather than decorative: since $\Delta(c_{obs})$ equals the paper’s own reported unadjusted estimate, a line drawn at some claimed CGR is only in the right place if $\Delta$ there equals that value. The paper’s Figure 4 draws its “original CGR” line at **0.72** (Fig 4 caption; see [`docs/sources.md`](sources.md)), so this tests 0.72 against the computed observed CGR.
 
 ```r
 pub_unadj <- c(PANAS = 3.2, `Mood VAS` = 6.4, `Energy VAS` = 11.5,
@@ -482,7 +482,7 @@ do.call(rbind, lapply(names(sb), function(nm) {
 
 Read `err_at_obs` against `err_at_0.72`. At the computed CGR of 0.647 the curve lands on the paper’s own reported unadjusted values to within ~0.12; at 0.72 it overshoots them by 1.0–2.1 points on the three self-report scales. So the green line as drawn is **not** the point where the curve equals the reported unadjusted estimate — the signature of a misplaced reference line.
 
-**The source code settles why.** In [`szb37/CorrectGuessRateCurve`](https://github.com/szb37/CorrectGuessRateCurve) the reference line is drawn from `trial_cgrs = {'sbmd': 0.72}` in `src/config.py` — a **hardcoded constant**, not a quantity computed from the data. The same code *does* compute the trial’s CGR from the data as `(n_plpl + n_acac) / n` (= 0.647), but that computed value is not what the plot’s green line uses. So 0.72 is a fixed annotation that does not match the data’s correct guess rate; it coincides almost exactly with the **placebo-arm** correct-guess rate (0.7234, Section 10). This is no longer a hypothesis — see `reports/UNRESOLVED.md` U3 and `reports/SOURCES.md`.
+**The source code settles why.** In [`szb37/CorrectGuessRateCurve`](https://github.com/szb37/CorrectGuessRateCurve) the reference line is drawn from `trial_cgrs = {'sbmd': 0.72}` in `src/config.py` — a **hardcoded constant**, not a quantity computed from the data. The same code *does* compute the trial’s CGR from the data as `(n_plpl + n_acac) / n` (= 0.647), but that computed value is not what the plot’s green line uses. So 0.72 is a fixed annotation that does not match the data’s correct guess rate; it coincides almost exactly with the **placebo-arm** correct-guess rate (0.7234, Section 10). This is no longer a hypothesis — see [`docs/open-questions.md`](open-questions.md) U3 and [`docs/sources.md`](sources.md).
 
 ## 8.7 Original KDE procedure vs the analytic curve
 
@@ -640,7 +640,7 @@ ggplot(data.frame(kde = kp[ok], post2 = 2 * pmin(bp[ok], 1 - bp[ok])),
   theme_minimal(base_size = 13)
 ```
 
-![](https://raw.githubusercontent.com/dsmi313/cgrc.bayes/main/report-files/full/fig04.png)
+![](https://raw.githubusercontent.com/dsmi313/cgrcBayes/main/docs/figures/full/fig04.png)
 
 The two procedures **agree on the estimand** — the per-trial point estimates are almost perfectly correlated ($r \approx$ 0.996) and share the same small bias — but they **do not agree on the evidence**. At matched thresholds the posterior flags the effect in about 74% of trials against roughly 54% for the averaged p-value, and the two rules reach different conclusions on about 20% of trials; in the scatter the averaged p-value sits systematically above the identity line — a weaker evidence signal for the same trials. This is **not** a kernel artefact: setting the KDE bandwidth to zero leaves the flag rate essentially unchanged (0.540 vs 0.540). It is the *resample-and-average-a-p-value* step itself — which has no coherent inferential interpretation — that costs the original procedure detection power. Replacing it with a posterior probability is therefore not merely a change of vocabulary: it recovers evidence the averaging discards, while leaving the estimand untouched. That is the single clearest statement of what the Bayesian version adds.
 
@@ -831,7 +831,7 @@ cgr_plot(cur[cur$outcome == "PANAS", ],
          title = "PANAS, week 1 acute")
 ```
 
-![](https://raw.githubusercontent.com/dsmi313/cgrc.bayes/main/report-files/full/fig05.png)
+![](https://raw.githubusercontent.com/dsmi313/cgrcBayes/main/docs/figures/full/fig05.png)
 
 Note what the lower panel is and is not. It is $P(\Delta(c) &gt; 0 \mid y)$ — the posterior probability that the reweighted contrast is positive. It is **not a p-value**, there is no line at 0.05, and the line at 0.95 is a descriptive marker, not a universal cutoff.
 
@@ -1090,7 +1090,7 @@ ggplot(stack, aes(cgr, p, fill = region)) +
   theme(legend.position = "bottom", panel.grid.minor = element_blank())
 ```
 
-![](https://raw.githubusercontent.com/dsmi313/cgrc.bayes/main/report-files/full/fig06.png)
+![](https://raw.githubusercontent.com/dsmi313/cgrcBayes/main/docs/figures/full/fig06.png)
 
 **Sensitivity to the width.** A region-based conclusion is only as robust as the region, so vary $\delta$ from 0.05 to 0.30 SD at CGR 0.50:
 
@@ -1238,7 +1238,7 @@ The x-axis of the extension’s curve is the **directional** correct-guess rate,
 plot(fit_u)
 ```
 
-![](https://raw.githubusercontent.com/dsmi313/cgrc.bayes/main/report-files/full/fig07.png)
+![](https://raw.githubusercontent.com/dsmi313/cgrcBayes/main/docs/figures/full/fig07.png)
 
 ## 13.5 Operating characteristics under an explicit UNKNOWN model
 
@@ -1260,7 +1260,7 @@ Under A1/A2 the estimator of $\Delta(0.50, u_{\text{obs}})$ is essentially unbia
 
 ## 13.6 What this extension does and does not claim
 
-It **preserves** the observed UNKNOWN responses and the observed within-class arm ratios $r, s, t$ while varying class mass — the same logic as the binary CGRC. It does **not** prove that treatment assignment and all three guess categories are independent; $t$ is an assumption exactly as $r, s$ are, and `c = 0.50` is directional guessing at chance, not proven perfect blinding. The operating characteristics above are validation **under A1 and A2** — not a claim that the extension beats the binary method in general, nor that A1/A2 hold in any real trial; differential UNKNOWN rates and expectancy-carrying UNKNOWN responders are not yet characterised, and the six strata are thinner than four so degenerate designs appear sooner (see `reports/UNRESOLVED.md`, U10). Optional, default-off sensitivities — `ratio_uncertainty` (propagate $r,s,t$), `pooling = "partial"` (hierarchical), and `cgr_unknown_independent()` (a separate shared-guess- distribution estimand) — are provided to probe those assumptions, not to settle them.
+It **preserves** the observed UNKNOWN responses and the observed within-class arm ratios $r, s, t$ while varying class mass — the same logic as the binary CGRC. It does **not** prove that treatment assignment and all three guess categories are independent; $t$ is an assumption exactly as $r, s$ are, and `c = 0.50` is directional guessing at chance, not proven perfect blinding. The operating characteristics above are validation **under A1 and A2** — not a claim that the extension beats the binary method in general, nor that A1/A2 hold in any real trial; differential UNKNOWN rates and expectancy-carrying UNKNOWN responders are not yet characterised, and the six strata are thinner than four so degenerate designs appear sooner (see [`docs/open-questions.md`](open-questions.md), U10). Optional, default-off sensitivities — `ratio_uncertainty` (propagate $r,s,t$), `pooling = "partial"` (hierarchical), and `cgr_unknown_independent()` (a separate shared-guess- distribution estimand) — are provided to probe those assumptions, not to settle them.
 
 ------------------------------------------------------------------------
 
@@ -1478,7 +1478,7 @@ Cavanna — psychological well-being (higher is better)
 app_curve(cav_wb, "positive")
 ```
 
-![](https://raw.githubusercontent.com/dsmi313/cgrc.bayes/main/report-files/full/fig08.png)
+![](https://raw.githubusercontent.com/dsmi313/cgrcBayes/main/docs/figures/full/fig08.png)
 
 ```r
 knitr::kable(app_summary(cav_vas), caption = "Cavanna — dosing-day acute-effect VAS (positive control)")
@@ -1500,7 +1500,7 @@ Cavanna — dosing-day acute-effect VAS (positive control)
 app_curve(cav_vas, "positive")
 ```
 
-![](https://raw.githubusercontent.com/dsmi313/cgrc.bayes/main/report-files/full/fig09.png)
+![](https://raw.githubusercontent.com/dsmi313/cgrcBayes/main/docs/figures/full/fig09.png)
 
 The region-of-practical-equivalence view sharpens the positive control: it asks not just whether the VAS effect is above zero but whether it clears a half-SD meaningful-difference band. At the observed CGR most of the posterior sits in **meaningful benefit**, so the acute effect is large, not merely non-zero.
 
@@ -1508,7 +1508,7 @@ The region-of-practical-equivalence view sharpens the positive control: it asks 
 app_rope(cav_vas)
 ```
 
-![](https://raw.githubusercontent.com/dsmi313/cgrc.bayes/main/report-files/full/fig10.png)
+![](https://raw.githubusercontent.com/dsmi313/cgrcBayes/main/docs/figures/full/fig10.png)
 
 Well-being shows nothing to adjust: a raw active-minus-placebo difference near zero with P(favourable) only 28%, essentially unchanged at perfect blinding (33%). The dosing-day VAS — the positive control — is the opposite: a raw effect of 11.1 points with P(favourable) 95%, and it *survives* CGR adjustment (92% at CGR 0.50). A real acute pharmacological signal that reweighting does not explain away — but note the primary caveat: a genuine acute effect can itself drive the correct guess, so here low attenuation is *expected* and is not by itself evidence that expectancy was absent.
 
@@ -1561,7 +1561,7 @@ Santana — 6-month ITT pain improvement, UNKNOWN preserved (MID 1.5)
 app_curve(san, "favourable")
 ```
 
-![](https://raw.githubusercontent.com/dsmi313/cgrc.bayes/main/report-files/full/fig11.png)
+![](https://raw.githubusercontent.com/dsmi313/cgrcBayes/main/docs/figures/full/fig11.png)
 
 Here the ROPE is the point. P(favourable) is essentially 100%, but splitting the posterior at the 1.5-point MID shows that at perfect blinding only about 45% of the mass is a *meaningful* benefit; the rest is practically negligible. The effect is real and favourable, but only borderline clinically important.
 
@@ -1569,7 +1569,7 @@ Here the ROPE is the point. P(favourable) is essentially 100%, but splitting the
 app_rope(san, xlab = "directional CGR (among AC/PL responses)")
 ```
 
-![](https://raw.githubusercontent.com/dsmi313/cgrc.bayes/main/report-files/full/fig12.png)
+![](https://raw.githubusercontent.com/dsmi313/cgrcBayes/main/docs/figures/full/fig12.png)
 
 This is the clearest case for the UNKNOWN extension. 26 of 77 participants (34%) answered “I do not know.” Forcing the binary complete-case analysis keeps only 51 participants and leaves an active/placebo-guess stratum of a single person — and it does not merely discard data, it *distorts* the estimate: the complete-case adjusted effect is 0.65 points, against 1.43 when UNKNOWN is preserved across all 77. Preserving UNKNOWN, the reweighted pain benefit is favourable with P(favourable) essentially 100%, and barely moves from the raw estimate (1.58 → 1.43) because the directional CGR (0.569) is already close to 0.5. The decision-relevant number is the probability the effect clears the 1.5-point MID: 57% raw → 45% adjusted — a real, favourable effect sitting right at the edge of clinical importance.
 
@@ -1618,7 +1618,7 @@ Lii / ketamine — mean MADRS Days 1-3 (lower is better; direction = -1)
 app_curve(ket, "favourable")
 ```
 
-![](https://raw.githubusercontent.com/dsmi313/cgrc.bayes/main/report-files/full/fig13.png)
+![](https://raw.githubusercontent.com/dsmi313/cgrcBayes/main/docs/figures/full/fig13.png)
 
 The ROPE tells the same cautionary story: the MADRS advantage is favourable, but at a half-SD meaningful-difference band only about 26% of the posterior is a meaningful benefit — most is practically negligible. P(favourable) alone would have overstated the clinical case.
 
@@ -1626,7 +1626,7 @@ The ROPE tells the same cautionary story: the MADRS advantage is favourable, but
 app_rope(ket, xlab = "directional CGR (among AC/PL responses)")
 ```
 
-![](https://raw.githubusercontent.com/dsmi313/cgrc.bayes/main/report-files/full/fig14.png)
+![](https://raw.githubusercontent.com/dsmi313/cgrcBayes/main/docs/figures/full/fig14.png)
 
 Guessing here is near chance (directional CGR 0.519): masked by anaesthesia, patients could not tell ketamine from placebo. That is exactly the regime where CGR adjustment *should* do almost nothing — and it does. The raw MADRS advantage of -3 points (favourable = lower) barely moves to -2.8 at perfect blinding, with P(favourable) 87% → 86%. Here the CGRC is *confirmatory*: because blinding held, the modest antidepressant signal is not an expectancy artefact — and with all six strata populated, the reweighting is well-defined rather than resting on a thin cell.
 
@@ -1645,8 +1645,8 @@ Across all three, the behaviour is what the method predicts: CGR adjustment move
 # 18 Unresolved questions
 
 1.  **Corrected JAGS prior.** **Resolved in this render.** `cgr_check_backends()` ran against JAGS: posterior means agree to 0.018 across the grid (max \|z\| = 1.34 relative to Monte Carlo error, max R-hat = 1.0001, min ESS = 39664), so the two backends target the same posterior and Section 8’s identity claim is supported. Reproducing this line requires a JAGS install; a render without rjags falls back to the NOT RUN note in Section 8.
-2.  **n = 232 versus the published n = 233.** The source paper (Szigeti 2023) states n = 233 week-1 datapoints under exactly the `w1s1` filter used here, so the analysis rule is confirmed; the public file still gives 232. A genuine one-record gap, unexplained by the papers. See `reports/SOURCES.md`.
-3.  **The 0.72 CGR — explained.** The paper’s Fig 4 caption states the trial CGR is 0.72, but that equals the *placebo-arm* correct-guess rate (0.7234); the analyzed data’s overall CGR is 0.647 (which reproduces the paper’s Table 2), and the author’s 2024 review cites ~65–70%. The Fig 4 reference line is therefore misplaced by ~0.07 — the error the Section 4 identity check catches. Worth one confirmation from the author. See `reports/SOURCES.md`.
+2.  **n = 232 versus the published n = 233.** The source paper (Szigeti 2023) states n = 233 week-1 datapoints under exactly the `w1s1` filter used here, so the analysis rule is confirmed; the public file still gives 232. A genuine one-record gap, unexplained by the papers. See [`docs/sources.md`](sources.md).
+3.  **The 0.72 CGR — explained.** The paper’s Fig 4 caption states the trial CGR is 0.72, but that equals the *placebo-arm* correct-guess rate (0.7234); the analyzed data’s overall CGR is 0.647 (which reproduces the paper’s Table 2), and the author’s 2024 review cites ~65–70%. The Fig 4 reference line is therefore misplaced by ~0.07 — the error the Section 4 identity check catches. Worth one confirmation from the author. See [`docs/sources.md`](sources.md).
 4.  **Exact AEB simulation source not located.** The `noise = "all"` resolution now matches the paper’s published Table 1 (0.05/0.86/0.78/0.99) and Hedges g = 0.4, but the exact Eq. 4 SD scope lives in the paper’s Supplementary Table 1, so this is not yet a line-by-line code check.
 5.  **No head-to-head operating-characteristic comparison** of the KDE procedure against the Bayesian one. Section 9 characterises the estimand, not the two procedures against each other.
 6.  **Benign versus malicious unblinding is not testable** with these data.
@@ -1656,7 +1656,7 @@ Across all three, the behaviour is what the method predicts: CGR adjustment move
 
 # 19 Sources
 
-The references below play distinct roles; only the first two underpin this work. Full per-finding citations are in `reports/SOURCES.md`.
+The references below play distinct roles; only the first two underpin this work. Full per-finding citations are in [`docs/sources.md`](sources.md).
 
 - **Primary methodological source** — the original CGRC method paper reproduced here. Szigeti B, Nutt D, Carhart-Harris R, Erritzoe D. 2023. “The difference between ‘placebo group’ and ‘placebo control’: a case study in psychedelic microdosing.” *Scientific Reports* 13:12107. <https://doi.org/10.1038/s41598-023-34938-7> The binary CGRC estimand, the activated-expectancy-bias framework, the CGR curves and the empirical reproduction are based on this work.
 - **Empirical dataset** — the source study for the public data reanalysed here. Szigeti B, et al. 2021. “Self-blinding citizen science to explore psychedelic microdosing.” *eLife* 10:e62878. <https://doi.org/10.7554/eLife.62878> Shipped as a checksum-verified copy in `data/pacutes.csv`.

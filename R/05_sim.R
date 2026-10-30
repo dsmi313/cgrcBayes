@@ -1,22 +1,55 @@
-# AEB generative model (Szigeti Fig 1, Eq 1-4) and the repeated-simulation
-# study used to establish operating characteristics.
+# Activated-expectancy-bias (AEB) generative model (Szigeti et al. 2023,
+# Fig 1 and Eq 1-4) and repeated-simulation operating characteristics.
 #
 #   Eq 1  p(B_TRT = 1) = 0.5
 #   Eq 2  p(B_PT = B_TRT) = p_CG
 #   Eq 3  B_TE = B_PT
 #   Eq 4  OUT = N_NH + B_TRT*N_DTE + B_TE*N_AEB
 #
-# `noise` resolves the ambiguity in Eq 4. Default "all" is EVIDENCE-BASED, not
-# a convenience choice; see reports/CHANGELOG.md F1:
-#   noise="all": Hedges g = 0.4011 (published 0.40); Table 1 unadjusted
-#                significance 0.056/0.876/0.826/0.992 (published
-#                0.05/0.86/0.78/0.99)
-#   noise="arm": Hedges g = 0.5023; rates 0.056/0.970/0.930/0.998
-# The exact scope of the Eq. 4 variance terms could not be verified from the
-# available source. `noise="all"` is the default because it most closely
-# reproduces the published Hedges g and operating characteristics; `all_prop`
-# concerns pseudo-sample allocation and provides no evidence about noise scope.
+# Eq 4 does not say whether the DTE and AEB noise terms apply to the whole
+# sample or only to the affected subgroup. noise = "all" (whole sample) is the
+# default because it most closely reproduces the published results:
+#   noise = "all": Hedges g = 0.4011 (published 0.40); Table 1 unadjusted
+#                  significance 0.056/0.876/0.826/0.992 (published
+#                  0.05/0.86/0.78/0.99)
+#   noise = "arm": Hedges g = 0.5023; rates 0.056/0.970/0.930/0.998
+# The variance scope has not been confirmed against the original simulation
+# code.
 
+#' Simulate a trial under the activated-expectancy-bias model
+#'
+#' `sim_aeb()` draws one trial from the activated-expectancy-bias (AEB) model
+#' of Szigeti et al. (2023): random 1:1 allocation, a guess that is correct
+#' with probability `p_cg`, and an outcome made of a baseline term, an optional
+#' direct treatment effect (DTE) in the active arm, and an optional expectancy
+#' effect for participants who believe they received the active treatment.
+#'
+#' `sim_aeb_unknown()` adds an "I don't know" response under two explicit
+#' assumptions: each participant answers UNKNOWN with probability `u`,
+#' independent of arm, and an UNKNOWN responder carries no expectancy. Among
+#' directional responders the guess is correct with probability `p_cg`.
+#'
+#' @param n Number of participants.
+#' @param p_cg Probability of a correct guess (among directional responders, in
+#'   `sim_aeb_unknown()`).
+#' @param u Probability of an UNKNOWN response.
+#' @param dte_on Include the direct treatment effect.
+#' @param aeb_on Include the expectancy effect.
+#' @param noise `"all"` applies the DTE and AEB noise terms to every
+#'   participant; `"arm"` applies them only within the affected subgroup.
+#' @param mu_nh,sd_nh Mean and SD of the baseline term.
+#' @param mu_dte,sd_dte Mean and SD of the direct treatment effect.
+#' @param mu_aeb,sd_aeb Mean and SD of the expectancy effect.
+#' @return A data frame with columns `condition`, `guess` and `value`, ready
+#'   for [cgrc()] or [cgrc_unknown()].
+#' @references Szigeti B, Nutt D, Carhart-Harris R, Erritzoe D (2023). The
+#'   difference between 'placebo group' and 'placebo control': a case study in
+#'   psychedelic microdosing. *Scientific Reports* 13:12107.
+#'   \doi{10.1038/s41598-023-34938-7}
+#' @examples
+#' set.seed(1)
+#' head(sim_aeb(n = 100, p_cg = 0.7, dte_on = TRUE, aeb_on = TRUE))
+#' table(sim_aeb_unknown(n = 100, u = 0.2)$guess)
 sim_aeb <- function(n = 230, p_cg = 0.7, dte_on = FALSE, aeb_on = FALSE,
                     noise = c("all", "arm"),
                     mu_nh = 10, sd_nh = 4, mu_dte = 3, sd_dte = 6.2,
@@ -35,17 +68,42 @@ sim_aeb <- function(n = 230, p_cg = 0.7, dte_on = FALSE, aeb_on = FALSE,
              stringsAsFactors = FALSE)
 }
 
-# Operating characteristics over many INDEPENDENT trials. A single simulated
-# trial is an illustration, not validation.
-#
-# Under this AEB simulation model, the known target Delta(0.5) equals the direct
-# treatment parameter because the simulated guess distribution is identical in
-# both arms at c = 0.5 and the AEB term cancels. This model-specific identity is
-# not a causal identification claim for real trials.
-# `direction` orients favourability (+1 higher-is-better, -1 lower-is-better) and
-# is applied identically to the Bayesian flags and the frequentist criterion, so
-# the two are compared on the SAME tail. At the default +1 every column is
-# byte-identical to the older two-sided build EXCEPT freq_sig (see below).
+#' Operating characteristics of the CGR-adjusted estimator
+#'
+#' Simulates `n_trials` independent trials from [sim_aeb()] in each of the four
+#' DTE by AEB scenarios and summarises how the adjusted estimate
+#' \eqn{\Delta(0.5)} performs. This is the pre-flight check Szigeti et al.
+#' (2023) recommend before applying CGR adjustment to a trial.
+#'
+#' Under this model the target \eqn{\Delta(0.5)} equals the direct treatment
+#' effect: at a 50% correct-guess rate the guess distribution is the same in
+#' both arms, so the expectancy term cancels. That identity is specific to the
+#' simulation model, not a causal identification result for real trials.
+#'
+#' Trials with an empty stratum are skipped and counted in
+#' `empty_stratum_rate`. A high rate means CGR adjustment is fragile at these
+#' design parameters.
+#'
+#' `cgr_unknown_operating()` does the same for the six-stratum estimator
+#' \eqn{\Delta(0.5, u_{obs})}, simulating with [sim_aeb_unknown()].
+#'
+#' @param n_trials Number of simulated trials per scenario.
+#' @inheritParams sim_aeb
+#' @param n_draws Posterior draws per stratum in each trial.
+#' @param seed RNG seed.
+#' @param mu_dte Direct treatment effect when DTE is on.
+#' @param mu_aeb Expectancy effect when AEB is on.
+#' @param direction `1` if higher outcome values are favourable, `-1` if lower
+#'   values are.
+#' @return A data frame with one row per scenario: the true effect; unadjusted
+#'   and adjusted means and biases; adjusted RMSE; 95% credible-interval
+#'   coverage; the rates of `P(favourable) > 0.95` for the adjusted and
+#'   unadjusted Bayesian analyses (`p_fav_gt_95`, `unadj_p_fav_gt_95`) and of
+#'   the stricter `P(favourable) > 0.975` (`p_fav_gt_975`); the two-sided
+#'   t-test rejection rate `freq_sig`; `empty_stratum_rate`; and the number of
+#'   valid trials.
+#' @examples
+#' cgr_operating(n_trials = 20, n = 120, p_cg = 0.75, n_draws = 500)
 cgr_operating <- function(n_trials = 500, n = 230, p_cg = 0.7,
                           noise = "all", n_draws = 4000, seed = 1,
                           mu_dte = 3, mu_aeb = 7.7, direction = 1) {
@@ -78,8 +136,7 @@ cgr_operating <- function(n_trials = 500, n = 230, p_cg = 0.7,
       # UNADJUSTED BAYESIAN posterior of the raw arm contrast (muAC - muPL) under
       # the same NIG model and the SAME P(favourable)>0.95 criterion as the
       # adjusted flag, so the trade-off compares like with like. Drawn on a
-      # saved-and-restored RNG state so every other column is byte-identical to a
-      # build without it.
+      # saved-and-restored RNG state so it leaves the other columns unchanged.
       .seed_save <- get(".Random.seed", envir = .GlobalEnv)
       udd <- nig_draws(a, n_draws = n_draws) - nig_draws(b, n_draws = n_draws)
       ufav[i] <- mean(direction * udd > 0) > 0.95
@@ -104,47 +161,37 @@ cgr_operating <- function(n_trials = 500, n = 230, p_cg = 0.7,
   out <- do.call(rbind, rows); rownames(out) <- NULL; out
 }
 
-# Expected size of the smallest stratum for a design of size n at correct-guess
-# rate p_cg. Under balanced allocation the four strata have expected shares
-# 0.5*p_cg (the two concordant/correct strata) and 0.5*(1 - p_cg) (the two
-# discordant/wrong strata), so the smallest is n * 0.5 * min(p_cg, 1 - p_cg).
-# Closed form, no simulation - the single best early warning that CGR adjustment
-# may be infeasible: when this drops below ~15 the discordant strata are thin and
-# simulated trials start coming up empty (see cgr_operating()'s empty_stratum_rate).
+#' Design feasibility helpers
+#'
+#' Closed-form quantities for planning a trial. No simulation is needed.
+#'
+#' * `cgr_expected_strata()`: expected size of each of the four strata under
+#'   1:1 allocation, with the same correct-guess rate in both arms.
+#' * `cgr_min_stratum()`: expected size of the smallest stratum,
+#'   `n * 0.5 * min(p_cg, 1 - p_cg)`. Below about 15, the wrong-guess strata
+#'   are thin and simulated trials start to come up empty.
+#' * `cgr_unknown_min_stratum()`: the same for the six strata of the UNKNOWN
+#'   extension. Structurally empty classes (`u = 0` or `u = 1`) are ignored, so
+#'   at `u = 0` it equals `cgr_min_stratum()`.
+#' * `cgr_aeb_inflation()`: the expected inflation of an unadjusted estimate by
+#'   expectancy under the AEB model, `mu_aeb * (2 * p_cg - 1)`.
+#'
+#' @param n Planned number of participants.
+#' @param p_cg Expected correct-guess rate.
+#' @param u Expected UNKNOWN-response rate.
+#' @param mu_aeb Expectancy effect, in outcome units.
+#' @return A number, or for `cgr_expected_strata()` a named vector of four.
+#' @examples
+#' cgr_expected_strata(120, 0.85)
+#' cgr_min_stratum(120, 0.85)
+#' cgr_aeb_inflation(7.7, 0.85)
+#' @name design_helpers
 cgr_min_stratum <- function(n, p_cg) n * 0.5 * pmin(p_cg, 1 - p_cg)
 
-# Expected inflation of an UNADJUSTED treatment estimate caused by activated
-# expectancy bias, in outcome points. In the AEB model the expectancy term adds
-# mu_aeb * E[B_TE | arm] to each arm's mean, and B_TE (perceived treatment) has
-# E[B_TE | active] = p_cg and E[B_TE | placebo] = 1 - p_cg, so an unadjusted
-# analysis picks up mu_aeb * (p_cg - (1 - p_cg)) = mu_aeb * (2 * p_cg - 1).
-# Closed form, no simulation (matches simulation to < 0.02 points). Turns the
-# opaque expectancy magnitude into a number a user can weigh against their own
-# effect size: "at CGR 0.85, mu_aeb = 7.7 inflates an unadjusted estimate by
-# 5.4 points".
+#' @rdname design_helpers
 cgr_aeb_inflation <- function(mu_aeb, p_cg) mu_aeb * (2 * p_cg - 1)
 
-# ---- UNKNOWN-aware generative model and operating characteristics ------------
-#
-# Extends the AEB model (sim_aeb) with an observed "I do not know" response, to
-# characterise the UNKNOWN-preserving estimator (R/10_unknown.R) the way
-# cgr_operating() characterises the binary one. This is a NEW generative model
-# with EXPLICIT assumptions, developed deliberately (not invented): see
-# reports/UNRESOLVED.md U10.
-#
-# Assumptions (both chosen deliberately; alternatives are stress tests, not the
-# default):
-#   A1  Each participant answers UNKNOWN with probability `u`, INDEPENDENT of arm.
-#   A2  An UNKNOWN responder carries NO expectancy (they state no directional
-#       belief, so the perceived-treatment -> expectancy path is absent: B_TE = 0).
-# Among directional responders the guess is correct with probability p_cg (the
-# directional CGR the estimator conditions on), and expectancy follows the
-# perceived treatment exactly as in sim_aeb. `noise` matches sim_aeb.
-#
-# Consequence used by the operating-characteristics study: at directional
-# CGR 0.50 with the UNKNOWN rate held fixed, the directional expectancy is
-# balanced across arms and the UNKNOWN mass is inert, so Delta(0.50, u_obs)
-# targets the direct treatment effect mu_dte - which coverage/bias then check.
+#' @rdname sim_aeb
 sim_aeb_unknown <- function(n = 230, p_cg = 0.7, u = 0.2,
                             dte_on = FALSE, aeb_on = FALSE, noise = c("all", "arm"),
                             mu_nh = 10, sd_nh = 4, mu_dte = 3, sd_dte = 6.2,
@@ -165,15 +212,7 @@ sim_aeb_unknown <- function(n = 230, p_cg = 0.7, u = 0.2,
              value = y, stringsAsFactors = FALSE)
 }
 
-# Operating characteristics of the UNKNOWN-PRESERVING estimator over many
-# independent trials, the six-stratum analogue of cgr_operating(). At each trial
-# it fits the six-stratum conjugate posterior and evaluates Delta(0.50, u_obs).
-# Reports adjusted bias, RMSE, 95% coverage, favourable-flag rates (one-sided
-# > 0.95 and matched > 0.975), the unadjusted t-test significance rate, and the
-# empty-stratum rate. The six strata are thinner than four, so `empty_stratum_rate`
-# here is the honest early warning that the extension is fragile at small n / high
-# guess or UNKNOWN rates - a trial with an empty directional class is skipped
-# (the estimand is undefined) and counted, never fabricated.
+#' @rdname cgr_operating
 cgr_unknown_operating <- function(n_trials = 500, n = 230, p_cg = 0.7, u = 0.2,
                                   noise = "all", n_draws = 4000, seed = 1,
                                   mu_dte = 3, mu_aeb = 7.7, direction = 1) {
@@ -229,11 +268,7 @@ cgr_unknown_operating <- function(n_trials = 500, n = 230, p_cg = 0.7, u = 0.2,
   out <- do.call(rbind, rows); rownames(out) <- NULL; out
 }
 
-# Expected size of the smallest of the SIX strata for an UNKNOWN-aware design.
-# With arm-independent UNKNOWN rate u, the directional mass is n(1-u), split into
-# correct 0.5*p_cg and wrong 0.5*(1-p_cg) shares per arm; the UNKNOWN mass is n*u
-# split ~0.5 per arm. The smallest expected cell is the thinnest of these - the
-# feasibility early warning for the six-stratum estimand (cf. cgr_min_stratum).
+#' @rdname design_helpers
 cgr_unknown_min_stratum <- function(n, p_cg, u) {
   # thinnest OCCUPIED cell: a structurally-empty class (u = 0 or u = 1) is not
   # counted, so at u = 0 this reduces to the binary cgr_min_stratum().

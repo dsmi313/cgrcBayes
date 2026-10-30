@@ -21,19 +21,61 @@
 # gave an AC/PL guess). At u = 0 it reduces exactly to the binary CGRC; see the
 # tests in tests/testthat/test-unknown.R.
 #
-# Reweighting to c = 0.50 is NOT "perfect blinding" without qualification: it is
-# "directional guessing at chance while holding the observed UNKNOWN-response
-# rate fixed". The wording throughout is deliberate.
+# Reweighting to c = 0.50 is not "perfect blinding": it is directional guessing
+# at chance with the observed UNKNOWN-response rate held fixed.
 
+#' Six-stratum UNKNOWN-preserving estimand
+#'
+#' A proposed extension of the CGRC that keeps "I don't know" guesses as a
+#' third response category, instead of dropping them or scoring them as wrong.
+#' It is not part of the original CGRC of Szigeti et al. (2023).
+#'
+#' The six strata are `UNKNOWN_STRATA`: `ACAC`, `ACPL`, `ACU`, `PLAC`, `PLPL`
+#' and `PLU`. For a target directional CGR `c` (correct guesses among AC/PL
+#' responders) and a target UNKNOWN rate `u`, the weights are
+#' `w_ACAC = (1 - u)c(1 - r)`, `w_PLPL = (1 - u)cr`,
+#' `w_ACPL = (1 - u)(1 - c)s`, `w_PLAC = (1 - u)(1 - c)(1 - s)`,
+#' `w_ACU = ut` and `w_PLU = u(1 - t)`, where `r`, `s` and `t` are the observed
+#' within-class arm shares. At `u = 0` the estimand reduces exactly to the
+#' binary CGRC, and at the observed `c` and `u` it equals the raw difference in
+#' arm means. `c = 0.50` means directional guessing at chance with the UNKNOWN
+#' rate held fixed, not perfect blinding.
+#'
+#' * `cgr_unknown_strata()` splits outcomes into the six strata. Unlike
+#'   [cgr_strata()] it allows empty cells; see [cgr_unknown_estimable()].
+#' * `cgr_unknown_observed()` returns the counts, the directional CGR `c_obs`
+#'   and the UNKNOWN rate `u_obs`.
+#' * `cgr_unknown_ratios()` returns `r`, `s` and `t`, with `NA` for an empty
+#'   class.
+#' * `cgr_unknown_weights()` returns the six weights.
+#' * `cgr_unknown_delta()` returns \eqn{\Delta(c, u)}. A zero-weight cell
+#'   contributes nothing, so an empty cell may carry an `NA` mean.
+#'
+#' @param df A data frame with one row per participant and columns
+#'   `condition` (`"AC"` or `"PL"`), `guess` (`"AC"`, `"PL"` or `"UNKNOWN"`)
+#'   and numeric `value`.
+#' @param st Six-stratum list from `cgr_unknown_strata()`.
+#' @param c Target directional correct-guess rate.
+#' @param u Target UNKNOWN-response rate.
+#' @param r,s,t Within-class arm shares from `cgr_unknown_ratios()`.
+#' @param mu Named list over `UNKNOWN_STRATA` of stratum means or equal-length
+#'   draw vectors.
+#' @return `cgr_unknown_strata()`: a named list of six numeric vectors, empty
+#'   cells included. `cgr_unknown_observed()` and `cgr_unknown_ratios()`:
+#'   lists. `cgr_unknown_weights()`: a named numeric vector.
+#'   `cgr_unknown_delta()`: a number, or a vector of draws.
+#' @examples
+#' set.seed(1)
+#' d   <- sim_aeb_unknown(n = 300, u = 0.2, dte_on = TRUE)
+#' st  <- cgr_unknown_strata(d)
+#' o   <- cgr_unknown_observed(st)
+#' rat <- cgr_unknown_ratios(st)
+#' cgr_unknown_delta(0.5, o$u_obs, lapply(st, mean), rat$r, rat$s, rat$t)
+#' @format NULL
+#' @name unknown_estimand
 UNKNOWN_STRATA <- c("ACAC", "ACPL", "ACU", "PLAC", "PLPL", "PLU")
 
-# Split a normalised trial (condition in {AC,PL}, guess in {AC,PL,UNKNOWN}) into
-# the six strata. Unlike cgr_strata(), this does NOT error on an empty cell: some
-# observed cells may be empty and then receive zero target weight under the
-# plug-in within-class share of 0 or 1. This can be fragile in sparse samples.
-# Estimability is checked separately by
-# cgr_unknown_estimable(). Returns a length-6 list in UNKNOWN_STRATA order, with
-# empty cells present as zero-length vectors.
+#' @rdname unknown_estimand
 cgr_unknown_strata <- function(df) {
   g <- as.character(df$guess)
   gcode <- ifelse(g == "UNKNOWN", "U", g)          # AC/PL/UNKNOWN -> AC/PL/U
@@ -46,8 +88,7 @@ cgr_unknown_strata <- function(df) {
   split(df$value, key)                              # keeps empty levels (drop=FALSE)
 }
 
-# Observed counts and rates. c_obs is the DIRECTIONAL correct-guess rate (correct
-# among AC/PL responders); u_obs is the UNKNOWN-response rate over all responders.
+#' @rdname unknown_estimand
 cgr_unknown_observed <- function(st) {
   n <- lengths(st)
   n_total    <- sum(n)
@@ -63,13 +104,7 @@ cgr_unknown_observed <- function(st) {
     c_obs = if (n_direct > 0) n_correct / n_direct else NA_real_)
 }
 
-# Preserved within-class arm shares. Overall target arm mass can change as c or
-# u changes, so each arm is renormalised when its weighted mean is computed.
-#   r = placebo's share of the CORRECT-guess class     PLPL / (PLPL + ACAC)
-#   s = active's  share of the INCORRECT-guess class   ACPL / (ACPL + PLAC)
-#   t = active's  share of the UNKNOWN-response class   ACU  / (ACU  + PLU)
-# A share is NA when its class is empty (0/0); the estimability check turns the
-# NAs that actually matter into a clear error.
+#' @rdname unknown_estimand
 cgr_unknown_ratios <- function(st) {
   n <- lengths(st)
   share <- function(a, b) if ((a + b) > 0) a / (a + b) else NA_real_
@@ -78,14 +113,7 @@ cgr_unknown_ratios <- function(st) {
        t = share(n[["ACU"]],  n[["PLU"]]))
 }
 
-# The six weights at target directional CGR c and target UNKNOWN rate u.
-#   correct  : w_ACAC + w_PLPL = (1 - u) * c
-#   incorrect: w_ACPL + w_PLAC = (1 - u) * (1 - c)
-#   unknown  : w_ACU  + w_PLU  = u
-# and all six sum to 1. When a class is empty its share is NA; but that class's
-# total target mass is then forced to zero here only if the
-# caller has confirmed estimability. To keep 0 * NA = 0 (an empty cell is never
-# weighted), NA shares are treated as 0 when their class mass is 0.
+#' @rdname unknown_estimand
 cgr_unknown_weights <- function(c, u, r, s, t) {
   z <- function(v) if (is.na(v)) 0 else v          # empty-class share -> 0
   r <- z(r); s <- z(s); t <- z(t)
@@ -97,10 +125,7 @@ cgr_unknown_weights <- function(c, u, r, s, t) {
     PLU  = u * (1 - t))[UNKNOWN_STRATA]
 }
 
-# Delta(c, u): reweighted active mean minus reweighted placebo mean. `mu` is a
-# named list over UNKNOWN_STRATA of either six scalars (point estimate) or six
-# equal-length draw vectors. A zero-weight cell contributes exactly
-# nothing and its mu is never touched (so an empty cell may carry NA mu safely).
+#' @rdname unknown_estimand
 cgr_unknown_delta <- function(c, u, mu, r, s, t) {
   w <- cgr_unknown_weights(c, u, r, s, t)
   term <- function(nm) if (w[[nm]] == 0) 0 else w[[nm]] * mu[[nm]]
@@ -114,14 +139,23 @@ cgr_unknown_delta <- function(c, u, mu, r, s, t) {
     (term("PLAC") + term("PLPL") + term("PLU")) / den_pl
 }
 
-# Estimability of the UNKNOWN-preserving estimand at target UNKNOWN rate u over a
-# grid of directional CGR values. Distinguishes three states, per the brief:
-#   - undefined  (error): a required directional class is empty, or u > 0 with an
-#                         empty UNKNOWN class;
-#   - fragile    (warn) : defined but a required class has a boundary arm share
-#                         or the smallest observed cell is thin;
-#   - well populated    : otherwise.
-# Returns an invisible classification; raises an error for the undefined case.
+#' Is the UNKNOWN-preserving estimand defined?
+#'
+#' Classifies the estimand at a target UNKNOWN rate over a grid of directional
+#' CGRs. It is undefined, and this errors, when a required directional class
+#' is empty, or when `u_target > 0` but no UNKNOWN responses were observed. It
+#' is fragile, and this warns, when a required class has an observed zero cell
+#' (forcing a within-class share of 0 or 1) or an observed cell has fewer than
+#' `thin` participants.
+#'
+#' @param st Six-stratum list from [cgr_unknown_strata()].
+#' @param u_target Target UNKNOWN rate.
+#' @param grid Directional CGRs that will be evaluated.
+#' @param thin Cell size below which a stratum counts as sparse.
+#' @param warn Warn about fragile cases.
+#' @return Invisibly, a list with `state` (`"fragile"` or `"well_populated"`),
+#'   the thin and boundary cells, the zero cells, and the smallest observed
+#'   cell.
 cgr_unknown_estimable <- function(st, u_target, grid, thin = 5L, warn = TRUE) {
   o <- cgr_unknown_observed(st)
   n <- o$counts
@@ -167,14 +201,24 @@ cgr_unknown_estimable <- function(st, u_target, grid, thin = 5L, warn = TRUE) {
                  min_stratum = min(n[used])))
 }
 
-# Conjugate Normal-Inverse-Gamma posterior for the six-stratum contrast. Reuses
-# nig_draws() (no duplicate posterior code). Draws are generated only for cells
-# with observations; a zero-weight empty cell is given NA mu and
-# is never referenced. n_draws controls Monte Carlo precision only - it is not a
-# sample size.
-# ratio_uncertainty (Section 17E, default FALSE): when TRUE, propagate posterior
-# uncertainty in the within-class arm shares r, s, t (see cgr_unknown_ratio_draws)
-# instead of conditioning on their observed values. The default is unchanged.
+#' Conjugate posterior curve for the UNKNOWN-preserving extension
+#'
+#' Six-stratum analogue of [cgr_conjugate()], evaluated over directional CGRs
+#' with the UNKNOWN rate held at `u_target`. Estimability is checked first with
+#' [cgr_unknown_estimable()].
+#'
+#' @param df A data frame with one row per participant and columns
+#'   `condition` (`"AC"` or `"PL"`), `guess` (`"AC"`, `"PL"` or `"UNKNOWN"`)
+#'   and numeric `value`.
+#' @inheritParams cgr_conjugate
+#' @param grid Directional CGRs at which to evaluate the curve.
+#' @param u_target Target UNKNOWN rate. `NULL` uses the observed rate.
+#' @param ratio_uncertainty If `TRUE`, propagate uncertainty in `r`, `s` and
+#'   `t` with [cgr_unknown_ratio_draws()] instead of conditioning on them.
+#' @param ratio_alpha Beta prior pseudo-count used when `ratio_uncertainty` is
+#'   `TRUE`.
+#' @return A data frame like that of [cgr_conjugate()], with the UNKNOWN rate
+#'   as attribute `"u"`.
 cgr_unknown_conjugate <- function(df, grid = seq(0, 1, length.out = 101),
                                   u_target = NULL, n_draws = 20000,
                                   prior = list(), direction = 1,
@@ -224,13 +268,7 @@ cgr_unknown_conjugate <- function(df, grid = seq(0, 1, length.out = 101),
     (term(w_PLAC, mu$PLAC) + term(w_PLPL, mu$PLPL) + term(w_PLU, mu$PLU)) / den_pl
 }
 
-# OPTIONAL sensitivity (Section 17E): posterior draws of the within-class arm
-# shares r, s, t instead of their observed point values. The original CGRC (and
-# this extension's default) CONDITIONS on r, s, t; treating them as uncertain
-# propagates binomial sampling error in the stratum composition, a different,
-# larger uncertainty statement. A share whose class has an observed empty arm
-# cell is held at its plug-in value (0 or 1), never randomised. Off by default so results
-# do not change.
+#' @rdname cgr_ratio_draws
 cgr_unknown_ratio_draws <- function(st, n_draws, alpha = 1) {
   n <- lengths(st)
   draw <- function(a, b) {
@@ -243,10 +281,7 @@ cgr_unknown_ratio_draws <- function(st, n_draws, alpha = 1) {
        t = draw(n[["ACU"]],  n[["PLU"]]))    # active  share of the UNKNOWN class
 }
 
-# Summary at the two directional CGRs that matter: the observed directional CGR
-# (the reweighting is a no-op there) and 0.50 (directional guessing at chance,
-# UNKNOWN rate held fixed). Deliberately mirrors cgr_summary_table() but names
-# the quantities for the UNKNOWN extension.
+#' @rdname cgr_summary_table
 cgr_unknown_summary_table <- function(cur, obs_cgr, u, label = "", tol = 1e-6) {
   at <- function(target) {
     i <- which.min(abs(cur$cgr - target))
@@ -275,10 +310,7 @@ cgr_unknown_summary_table <- function(cur, obs_cgr, u, label = "", tol = 1e-6) {
   out
 }
 
-# The reference-line diagnostic for the UNKNOWN extension. At the observed
-# directional CGR and observed UNKNOWN rate the reweighting is a no-op, so Delta
-# there equals the raw active-minus-placebo mean difference. That makes the
-# observed-value identity checkable exactly as in the binary case.
+#' @rdname cgr_reference_line_test
 cgr_unknown_reference_line_test <- function(df, orig_cgr = NULL,
                                             published_unadj = NA_real_) {
   st  <- cgr_unknown_strata(df)
@@ -301,9 +333,7 @@ cgr_unknown_reference_line_test <- function(df, orig_cgr = NULL,
     stringsAsFactors = FALSE)
 }
 
-# ROPE decomposition of the UNKNOWN-preserving contrast, using the same
-# Delta(c, u) posterior draws. Regions relative to the band [-delta, +delta] are
-# exhaustive and sum to 1 at every directional CGR.
+#' @rdname cgr_rope
 cgr_unknown_rope <- function(df, grid = seq(0, 1, length.out = 101),
                              u_target = NULL, n_draws = 20000, delta = NULL,
                              delta_sd_frac = 0.1, direction = 1, prior = list()) {
@@ -332,8 +362,7 @@ cgr_unknown_rope <- function(df, grid = seq(0, 1, length.out = 101),
     stringsAsFactors = FALSE)
 }
 
-# How the UNKNOWN-preserving ROPE conclusion at a single directional CGR moves as
-# the band width delta is varied.
+#' @rdname cgr_rope
 cgr_unknown_rope_sensitivity <- function(df, at_cgr = 0.5, u_target = NULL,
                                          fracs = c(0.05, 0.10, 0.20, 0.30),
                                          n_draws = 12000, direction = 1) {
@@ -347,17 +376,34 @@ cgr_unknown_rope_sensitivity <- function(df, at_cgr = 0.5, u_target = NULL,
   }))
 }
 
-# cgrc_unknown(df): the one-call UNKNOWN-preserving analysis. `df` needs columns
-# condition, guess and value. condition normalises to AC/PL; guess normalises to
-# AC/PL/UNKNOWN (unknown_level names the raw token that means UNKNOWN, in
-# addition to the recognised synonyms). unknown_rate = NULL holds u at the
-# observed UNKNOWN-response rate; a numeric in [0, 1) is a sensitivity target.
-# direction = +1 if higher is better, -1 if lower is better. Returns an S3
-# "cgrc_unknown" object (NOT inheriting "cgrc": the binary plot/print methods
-# would mislabel the directional x-axis).
-# outcome = a label for the outcome being analysed. When non-empty it is added as
-# a leading `outcome` column in the summary table; the default "" omits the column
-# entirely.
+#' UNKNOWN-preserving analysis of a trial
+#'
+#' One-call analysis for trials whose guess question allowed "I don't know".
+#' Codes are normalised with [cgrc_normalise_arm()] and
+#' [cgrc_normalise_guess()]. Rows with a missing condition, guess or value are
+#' dropped; UNKNOWN responses are kept. The curve runs over directional CGRs
+#' with the UNKNOWN rate held fixed, and is summarised at the observed
+#' directional CGR and at 0.50.
+#'
+#' This is a proposed extension, not the original CGRC.
+#'
+#' @inheritParams cgrc
+#' @param df A data frame with columns `condition`, `guess` and `value`, in any
+#'   coding the normalisers recognise.
+#' @param unknown_level Extra guess label to treat as UNKNOWN.
+#' @param unknown_rate UNKNOWN rate to hold fixed. `NULL` uses the observed
+#'   rate; a number in \[0, 1) is a sensitivity target.
+#' @param x A `cgrc_unknown` object.
+#' @param ... For `plot()`, passed to [cgr_unknown_plot()]. Ignored by
+#'   `print()`.
+#' @return An object of class `cgrc_unknown`: a list with the posterior
+#'   `curve`, the `summary` table, the observed directional CGR and UNKNOWN
+#'   rate, the target UNKNOWN rate, the stratum `counts`, sample sizes,
+#'   `direction`, `seed` and `method`.
+#' @examples
+#' set.seed(1)
+#' trial <- sim_aeb_unknown(n = 300, u = 0.2, dte_on = TRUE, aeb_on = TRUE)
+#' cgrc_unknown(trial, n_draws = 4000)
 cgrc_unknown <- function(df, unknown_level = "UNKNOWN", unknown_rate = NULL,
                          n_draws = 20000, direction = 1, prior = list(),
                          seed = NULL, outcome = "") {
@@ -392,6 +438,7 @@ cgrc_unknown <- function(df, unknown_level = "UNKNOWN", unknown_rate = NULL,
     class = "cgrc_unknown")
 }
 
+#' @rdname cgrc_unknown
 print.cgrc_unknown <- function(x, ...) {
   cat(sprintf("%s\n", x$method))
   cat(sprintf("observed directional CGR = %.4f; UNKNOWN rate = %.1f%% held at %.1f%%\n",
@@ -401,15 +448,25 @@ print.cgrc_unknown <- function(x, ...) {
   invisible(x)
 }
 
+#' @rdname cgrc_unknown
 plot.cgrc_unknown <- function(x, ...) {
   cgr_unknown_plot(x$curve, obs_cgr = x$observed_directional_cgr,
                    u = x$target_unknown_rate, ...)
 }
 
-# cgrc_unknown_headline(df): the interpretable summary for the UNKNOWN extension.
-# Reports the two plain probabilities before/after reweighting directional guesses
-# to 0.50 (UNKNOWN rate held fixed), and states plainly that this is an extension,
-# not the original Szigeti estimand, using reweighting rather than causal wording.
+#' Two-probability headline for the UNKNOWN-preserving extension
+#'
+#' The UNKNOWN-extension analogue of [cgrc_headline()]: the probability of a
+#' favourable effect and of a meaningful effect, before and after reweighting
+#' directional guesses to 0.50 with the UNKNOWN rate held fixed.
+#'
+#' @inheritParams cgrc_unknown
+#' @inheritParams cgrc_headline
+#' @param x A `cgrc_unknown_headline` object.
+#' @param ... Ignored.
+#' @return An object of class `cgrc_unknown_headline`: a list with the observed
+#'   rates, `delta`, the adjusted estimate and its 95% credible interval, the
+#'   four probabilities, and a `text` summary.
 cgrc_unknown_headline <- function(df, unknown_level = "UNKNOWN", unknown_rate = NULL,
                                   direction = 1, delta = NULL, delta_sd_frac = 0.5,
                                   n_draws = 20000, prior = list(), seed = NULL) {
@@ -459,23 +516,28 @@ cgrc_unknown_headline <- function(df, unknown_level = "UNKNOWN", unknown_rate = 
   structure(res, class = "cgrc_unknown_headline")
 }
 
+#' @rdname cgrc_unknown_headline
 print.cgrc_unknown_headline <- function(x, ...) { cat(x$text, "\n"); invisible(x) }
 
-# EXPERIMENTAL, SEPARATE estimand (Section 17F). This is NOT the CGRC and NOT the
-# Proposed UNKNOWN-preserving CGRC extension. It standardises both arms to a single shared
-# guess distribution q over g in {AC, PL, UNKNOWN} and takes the direct,
-# within-guess-class arm contrast:
-#
-#   Delta_ind = sum_g q_g * (mu_{AC,g} - mu_{PL,g})
-#
-# with, per guess class g, the active-arm cell and the placebo-arm cell:
-#   g = AC : ACAC vs PLAC     g = PL : ACPL vs PLPL     g = UNKNOWN : ACU vs PLU
-#
-# Unlike the CGRC (which reweights CLASS MASS while preserving observed
-# within-class arm ratios), this directly targets a common guess distribution
-# across arms and therefore requires BOTH arm cells of every class with q_g > 0.
-# `q` defaults to the overall observed guess marginal. Reported as a reweighted /
-# standardised estimate, never as a causal "expectancy-removed" effect.
+#' Shared-guess-distribution standardisation (experimental)
+#'
+#' A separate, experimental estimand: neither the CGRC nor the
+#' UNKNOWN-preserving extension. It standardises both arms to one shared guess
+#' distribution `q` over AC, PL and UNKNOWN, and averages the within-class arm
+#' contrasts:
+#' \deqn{\Delta_{ind} = \sum_g q_g (\mu_{AC,g} - \mu_{PL,g}).}
+#' Every class with `q_g > 0` needs both of its arm cells populated. `q`
+#' defaults to the observed guess distribution. The result is a standardised
+#' estimate, not an expectancy-free causal effect.
+#'
+#' @inheritParams cgrc_unknown
+#' @param q Named shared guess distribution, `c(AC = , PL = , UNKNOWN = )`,
+#'   rescaled to sum to one. `NULL` uses the observed distribution.
+#' @param x A `cgr_unknown_independent` object.
+#' @param ... Ignored.
+#' @return An object of class `cgr_unknown_independent`: a list with `q`, the
+#'   posterior mean `est`, `sd`, 95% limits `lo` and `hi`, `p_favourable`, the
+#'   stratum `counts` and `n_total`.
 cgr_unknown_independent <- function(df, q = NULL, unknown_level = "UNKNOWN",
                                     n_draws = 20000, direction = 1, prior = list(),
                                     seed = NULL) {
@@ -523,6 +585,7 @@ cgr_unknown_independent <- function(df, q = NULL, unknown_level = "UNKNOWN",
     class = "cgr_unknown_independent")
 }
 
+#' @rdname cgr_unknown_independent
 print.cgr_unknown_independent <- function(x, ...) {
   cat(x$method, "\n")
   cat(sprintf("shared guess distribution q = (AC %.3f, PL %.3f, UNKNOWN %.3f)\n",
